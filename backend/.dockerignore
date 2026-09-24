@@ -1,0 +1,30 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtualenv
+.venv/
+venv/
+env/
+
+# Local config (image inherits env from docker-compose, not from .env files)
+.env
+.env.*
+
+# Tests / reports
+tests/__pycache__/
+test_reports/
+*.log
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Runtime uploads — mounted as a volume in production
+uploads/
+
+# Misc
+*.sqlite
+*.db

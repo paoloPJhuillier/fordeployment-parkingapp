@@ -1,0 +1,58 @@
+{
+  "summary": "VAPT retest iteration 37 (DB_TYPE=couchbase). 15/16 pytest PASS + V-11 frontend PASS. V-02a (admin sees 11 fields, user sees trimmed 6), V-02b (user scoped to self, attendant scoped to assigned_buildings, 403 on cross-user path), V-03 (local CORS fail-closed - no ACAO echoed for foreign origin), V-08 POST /api/users (sanitized), V-10 build-info (public, returns fastapi/motor/couchbase/pyjwt/bcrypt versions), V-11 (password cleared on window blur). REGRESSION: V-01 bulk-upload role coerced, V-07 no version on /api/, admin/user/attendant logins, list users, buildings, db-info, collection-stats all PASS. CRITICAL BUG FOUND: V-08 PUT /api/users/{id} returns 500 on Couchbase — CouchbaseCollection is missing find_one_and_update (used by users.update_user). Not a V-08 regression per se (sanitize code is correct) but the PUT path is broken on Couchbase mode.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PUT /api/users/{user_id}", "issue": "Returns 500 on Couchbase: AttributeError: 'CouchbaseCollection' object has no attribute 'find_one_and_update'. users.update_user calls db.users.find_one_and_update which is not implemented in /app/backend/database/couchbase_db.py. Entire user-edit flow (admin editing a user) is broken whenever DB_TYPE=couchbase. MongoDB mode unaffected.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verification_matrix": {
+    "V-02a_admin": "11 fields present (release_time, default_start_time, default_end_time, booking_window_days, no_show_release_enabled, no_show_release_minutes, waitlist_enabled, waitlist_notification_window_minutes, main_building_exclusive, id, building_id)",
+    "V-02a_user": "Exactly 6 fields; no_show_*/waitlist_*/main_building_exclusive absent",
+    "V-02b_user_scope": "All returned regs have user_id==current_user.id",
+    "V-02b_attendant_scope": "All returned regs have building_id in assigned_buildings",
+    "V-02b_cross_user_403": "GET /api/slot-registrations/user/{other_id} -> 403",
+    "V-03_local_cors": "OPTIONS http://localhost:8001/api/auth/login with Origin: https://evil.example.com -> no Access-Control-Allow-Origin header (CORS_ORIGINS env empty -> allow_origins=[])",
+    "V-08_POST": "first_name='=CMD()' stored/returned as \"'=CMD()\"; similarly +attack, -evil, @formula prefixed with single quote",
+    "V-08_PUT": "BROKEN on Couchbase — see critical issue",
+    "V-10_build_info": "Public GET returns deployed_at, server_time (int), python_packages with concrete versions (fastapi=0.115.5, motor=3.7.0, couchbase=4.3.3, pyjwt=2.10.1, bcrypt=4.2.1 observed)",
+    "V-11_wipe_on_blur": "Typed 'SuperSecretPwd123!', dispatched window.blur, value became '' — PASS"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_vapt_retest_iteration37.py",
+    "/app/test_reports/pytest/pytest_vapt_iter37.xml"
+  ],
+  "action_items": [
+    "Implement find_one_and_update (and find_one_and_delete if used) in /app/backend/database/couchbase_db.py CouchbaseCollection to restore PUT /api/users/{id} on Couchbase. Alternatively rewrite users.update_user to use update_one + find_one which already work in the adapter.",
+    "Once find_one_and_update is added, re-run tests/test_vapt_retest_iteration37.py to confirm V-08 PUT sanitization path is green end-to-end."
+  ],
+  "critical_code_review_comments": [
+    "routes/parking_config.py correctly dispatches on role — role-based response shapes are explicit; good defense-in-depth.",
+    "routes/users.py sanitize_csv_field is defined at module bottom AFTER create_user/update_user reference it — Python resolves at call time so this works, but move it above for readability.",
+    "server.py allow_origins=[] fail-closed is correct; CORS_ORIGINS='*' still honored when explicitly set.",
+    "LoginPage.js window blur wipe is good, but note: the password also lives in JS-heap once login() is called; this is acceptable residual risk already flagged in the code comment.",
+    "CRITICAL: database/couchbase_db.py missing find_one_and_update/find_one_and_delete. Any route using those Mongo-idiomatic calls silently breaks when DB_TYPE=couchbase. Audit all routes for these method names: users.py (update_user confirmed broken)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_vapt_retest_iteration37.py"
+  ],
+  "success_rate": {
+    "backend": "93.75% (15/16 pytest) — the 1 failure is a Couchbase-adapter regression, not a VAPT-fix regression",
+    "frontend": "100% (V-11 wipe-on-blur verified, admin login regression PASS)"
+  },
+  "test_credentials": {
+    "admin": "admin.test@cebuana.com / Test123!",
+    "user": "user.test@cebuana.com / Test123!",
+    "attendant": "attendant.test@cebuana.com / Test123!"
+  },
+  "seed_data_creation": "Test creates/deletes a single TEST_vapt_*@example.com user for V-08 POST and a TEST_vapt37_regression user for V-01. Both cleaned up unless PUT breaks cleanup (may leave 1 orphan on Couchbase).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "DB_TYPE=couchbase is active. All 5 newly requested VAPT fixes (V-02/V-03/V-08-POST/V-10/V-11) are verified green. V-08-PUT cannot be verified on Couchbase until main agent implements find_one_and_update in /app/backend/database/couchbase_db.py CouchbaseCollection. V-03 was tested against LOCAL (http://localhost:8001) as instructed — the preview URL goes through the K8s ingress which adds its own CORS headers and is expected. Re-running the pytest file is safe and idempotent.",
+  "rca_of_the_issue": "PUT /api/users/{id} failure on Couchbase: routes/users.py update_user() calls `db.users.find_one_and_update({'id': user_id}, {'$set': update_data}, return_document=True, projection=...)`. The Couchbase adapter in /app/backend/database/couchbase_db.py defines find_one/find/update_one/delete_one but NOT find_one_and_update, so Python's attribute lookup raises AttributeError -> 500. Fix options: (a) implement find_one_and_update in CouchbaseCollection as update_one followed by find_one, or (b) refactor update_user to do update_one + find_one explicitly. Option (b) is safer because it keeps the adapter surface small and fixes this single route without changing the abstraction."
+}

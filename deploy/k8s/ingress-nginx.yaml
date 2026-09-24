@@ -1,0 +1,50 @@
+# Option A — Nginx Ingress with TLS termination at the cluster edge.
+#
+# Use this when your CCE cluster has the nginx-ingress controller (or the
+# Huawei-shipped equivalent) installed and you want the Ingress to terminate
+# TLS itself.
+#
+# Prerequisite — create the TLS secret from your customer-supplied cert:
+#   kubectl -n parking-app create secret tls parking-tls \
+#       --cert=fullchain.pem --key=privkey.pem
+#
+# Replace `parking.your-hcs.local` with the real hostname before applying.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: parking-ingress
+  namespace: parking-app
+  annotations:
+    # Match the same body limit the frontend nginx already enforces (10MB image upload).
+    nginx.ingress.kubernetes.io/proxy-body-size: "12m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    # Force HTTPS — the controller will 308 redirect plain HTTP to HTTPS.
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - parking.your-hcs.local
+      secretName: parking-tls
+  rules:
+    - host: parking.your-hcs.local
+      http:
+        paths:
+          # /api/* goes straight to the backend Service. The ingress strips
+          # nothing; FastAPI sees the same /api/... it always has.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8001
+          # Everything else is the React SPA served by the frontend pods.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

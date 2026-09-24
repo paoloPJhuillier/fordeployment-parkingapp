@@ -1,0 +1,65 @@
+{
+  "summary": "VAPT retest iteration 38 (DB_TYPE=couchbase). Focused regression after main agent added find_one_and_update + find_one_and_delete to the Couchbase adapter. 29/29 backend pytest PASS (1 environmental skip). The iteration_37 critical bug (PUT /api/users/{id} returning 500 on Couchbase) is FIXED. Reservation confirm flows (PUT /api/reservations/{id}/confirm and POST /api/reservations/{id}/confirm-with-photo) no longer 500 — they correctly return 404 for missing ids and exercise the new find_one_and_update path. All V-02/V-03/V-08(POST+PUT)/V-10/V-11 fixes hold. Full regression on logins, list users/buildings, reports/stats, /api/system/db-info, /api/system/collection-stats, /api/system/build-info, /api/system/sync-mongo-to-couchbase all green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verification_matrix": {
+    "V-08_PUT_couchbase": "PASS — PUT /api/users/{id} returns 200 on Couchbase; first_name/last_name/company/job_family all CSV-prefixed with single quote; values persisted (verified via list endpoint).",
+    "reservations_confirm_PUT": "PASS — PUT /api/reservations/{bogus}/confirm returns 404 (not 500). find_one_and_update Couchbase path executes cleanly.",
+    "reservations_confirm_with_photo_POST": "PASS — POST /api/reservations/{bogus}/confirm-with-photo returns 404 (not 500). find_one_and_update path executes cleanly.",
+    "V-02a_admin_full_fields": "PASS (re-run from iter37)",
+    "V-02a_user_trimmed_fields": "PASS (re-run)",
+    "V-02b_slot_regs_admin": "PASS",
+    "V-02b_slot_regs_user_self_scope": "PASS",
+    "V-02b_slot_regs_attendant_building_scope": "PASS",
+    "V-02b_cross_user_403": "PASS",
+    "V-03_cors_fail_closed_local": "PASS — no ACAO echoed for foreign origin against localhost:8001.",
+    "V-08_POST_csv_injection": "PASS",
+    "V-10_build_info_public": "PASS — fastapi/motor/couchbase/pyjwt/bcrypt versions present and not 'unknown'.",
+    "V-01_bulk_upload_role_coercion": "PASS",
+    "V-07_no_version_disclosure": "PASS",
+    "regression_logins_admin_user_attendant": "PASS",
+    "regression_list_users": "PASS",
+    "regression_list_buildings_nested": "PASS",
+    "regression_reports_stats": "PASS (200, dict/list)",
+    "regression_db_info": "PASS",
+    "regression_collection_stats": "PASS",
+    "regression_sync_mongo_to_couchbase": "PASS — endpoint runs end-to-end on Couchbase Capella, idempotent."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_vapt_retest_iteration38.py",
+    "/app/backend/tests/test_vapt_retest_iteration37.py",
+    "/app/test_reports/pytest/pytest_vapt_iter38.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "couchbase_db.py find_one_and_update implementation is correct: KV fast-path for id-only filters (single round trip get + replace), N1QL fallback for general filters, supports return_document (BEFORE/AFTER), upsert, and projection. Mirrors Motor semantics adequately for what the app uses.",
+    "find_one_and_delete is similarly correct (KV fast-path + N1QL fallback) and returns the removed doc snapshot.",
+    "Note: ReturnDocument enum from pymongo is NOT explicitly supported — code does `bool(return_document)` which works because ReturnDocument.AFTER == True and ReturnDocument.BEFORE == False in pymongo, but if someone passes a non-bool truthy value it could surprise. Low risk since callers in this repo pass `return_document=True` literally.",
+    "Minor: the upsert branch in the GENERAL find_one_and_update path returns None when not return_after even after creating a new doc; Motor would arguably return None too because there is no BEFORE — that matches but is worth a code comment.",
+    "Audit was clean: the only callers of find_one_and_update / find_one_and_delete in /app/backend/routes are users.update_user and reservations.confirm_reservation / confirm_reservation_with_photo — all three now pass the Couchbase adapter."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_vapt_retest_iteration38.py"
+  ],
+  "success_rate": {
+    "backend": "100% (29/29 pytest pass; 1 environmental skip on full reservation lifecycle because user has no vehicle/free-slot seeded — not a code defect)",
+    "frontend": "skipped per request (already passed in iteration_37)"
+  },
+  "test_credentials": {
+    "admin": "admin.test@cebuana.com / Test123!",
+    "user": "user.test@cebuana.com / Test123!",
+    "attendant": "attendant.test@cebuana.com / Test123!"
+  },
+  "seed_data_creation": "Test creates a single TEST_iter38_*@example.com user for V-08 PUT verification and deletes it on success/failure. Cleanup is in a try/finally so no orphans even if assertions fail.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "DB_TYPE=couchbase. All previously open VAPT items are green. Couchbase adapter now implements: find_one, find, insert_one, insert_many, update_one, update_many, delete_one, delete_many, count_documents, find_one_and_update (NEW), find_one_and_delete (NEW), aggregate (stub), create_index (no-op). If a future route uses any other Mongo idiom (e.g. bulk_write, watch, distinct), it will break on Couchbase — audit the route on introduction. The full reservation lifecycle test is currently SKIPPED because the test user has no vehicle/available slot seeded; if you want it to run, seed a vehicle for user.test@cebuana.com and ensure at least one slot is free for tomorrow.",
+  "rca_of_the_issue": "Iteration_37 root cause (CouchbaseCollection missing find_one_and_update) has been resolved by main agent. Verified by: (1) dedicated PUT /api/users/{id} sanitization test with CSV payload — returns 200 with single-quote-prefixed fields and the change is reflected in the list endpoint; (2) reservation confirm endpoints (PUT and POST variants) correctly return 404 for non-existent ids instead of 500 AttributeError; (3) full iteration_37 pytest re-run shows the V-08 PUT path which previously failed is now green."
+}

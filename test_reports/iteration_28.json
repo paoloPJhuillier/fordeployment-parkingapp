@@ -1,0 +1,73 @@
+{
+  "summary": "Bug Fix Verification Run - All 7 bugs confirmed fixed. Backend: 11/11 pytest tests passed. Frontend: All 4 UI fixes verified via Playwright.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "TC-USER-MANAGEMENT-026": {
+      "status": "PASS",
+      "description": "Blocked user login returns 403 with 'Your account has been blocked. Please contact your administrator.'",
+      "test": "block via PUT /api/users/{id}/block, login attempt returns 403, unblock restores login access"
+    },
+    "TCID-DASHBOARD-001": {
+      "status": "PASS",
+      "description": "Admin sidebar Parking Config link navigates to /admin/parking-config",
+      "test": "AdminLayout.js href verified as /admin/parking-config, click test confirms navigation"
+    },
+    "TCID-LOGIN-018": {
+      "status": "PASS",
+      "description": "Changing password to same current password returns 400 with 'New password cannot be the same as your current password'",
+      "test": "POST /api/auth/change-password with same current+new password returns 400"
+    },
+    "TCID-LOGIN-002-019": {
+      "status": "PASS",
+      "description": "Empty login fields trigger browser native validation ('Please fill out this field.') - form does not submit to API, no blank page, no 'Invalid credentials'",
+      "test": "Empty email shows browser tooltip on email field; empty password shows tooltip on password field; page stays at /login"
+    },
+    "TC-USER-MANAGEMENT-008": {
+      "status": "PASS",
+      "description": "Searching 'Test User' (full name) finds user.test@cebuana.com - 3 users found",
+      "test": "UserManagement search input with 'Test User' shows 3 results including user.test@cebuana.com"
+    },
+    "TCID-PARKING-ATTENDANT-003": {
+      "status": "PASS",
+      "description": "Attendant dashboard has 'Scan QR' button in header, clicking opens dialog with QR Token input field and Look Up button",
+      "test": "data-testid='scan-qr-btn' found in header, click opens dialog with data-testid='qr-token-input' and 'qr-scan-submit-btn'"
+    },
+    "TCID-DASHBOARD-007": {
+      "status": "PASS",
+      "description": "Reports stats API building_breakdown contains no 'Unknown' building names - reservations with deleted/missing buildings are skipped",
+      "test": "GET /api/reports/stats returns building_breakdown with no entries where building_name == 'Unknown'"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bugfixes_iteration28.py",
+    "/app/test_reports/pytest/pytest_iteration28.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Login page: JS toast validation (for empty email/password) runs AFTER browser native HTML required validation intercepts form submission - both work correctly but the JS toast messages (e.g. 'Please enter your email address') may not be reachable in normal browser usage since the native required validation prevents submission first. Not a bug, just informational."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_bugfixes_iteration28.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 passed)",
+    "frontend": "100% (7/7 bug fixes verified)"
+  },
+  "test_credentials": {
+    "admin": "admin.test@cebuana.com / Test123!",
+    "user": "user.test@cebuana.com / Test123!",
+    "attendant": "attendant.test@cebuana.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing test accounts",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 7 bug fixes from iteration 28 verified working: (1) Blocked users get 403, (2) Parking Config at /admin/parking-config, (3) Same-password change returns 400, (4) Empty login fields show native HTML validation, (5) Full name search 'Test User' works, (6) Attendant Scan QR button + dialog present, (7) No 'Unknown' buildings in reports. All backend and frontend verified. Previous iteration 27 tested: Admin cancel, Main Building Exclusivity, Event Blocking, Password features - all passing."
+}

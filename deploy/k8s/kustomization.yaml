@@ -1,0 +1,32 @@
+# Default kustomization — deploys EVERYTHING with the Nginx Ingress option.
+#
+# To use the LoadBalancer/NodePort variant instead:
+#   1. Replace `ingress-nginx.yaml` with `ingress-clusterip.yaml` in `resources` below.
+#   2. Re-run `kubectl apply -k deploy/k8s/`.
+#
+# To override the image registry/tag without editing every manifest:
+#   kustomize edit set image \
+#       REGISTRY/parking-backend:TAG=registry.your-hcs.local/parking-backend:v1.0.0 \
+#       REGISTRY/parking-frontend:TAG=registry.your-hcs.local/parking-frontend:v1.0.0
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: parking-app
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.example.yaml          # replace with secret.yaml in production
+  - backend-leader.yaml
+  - backend-worker.yaml
+  - backend-service.yaml
+  - frontend-deployment.yaml
+  - ingress-nginx.yaml           # swap to ingress-clusterip.yaml if no ingress controller
+
+images:
+  - name: REGISTRY/parking-backend
+    newName: registry.your-hcs.local/parking-backend
+    newTag: v1.0.0
+  - name: REGISTRY/parking-frontend
+    newName: registry.your-hcs.local/parking-frontend
+    newTag: v1.0.0

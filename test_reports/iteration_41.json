@@ -1,0 +1,36 @@
+{
+  "summary": "Backend regression of floor-layout upload pipeline through new storage abstraction (LocalStorage). 15/15 pytest tests passed against the live preview backend (Couchbase Capella) covering happy-path upload, byte-perfect round-trip, all 3 validation rejections (content-type/extension/size), 404 on bad floor_id, admin-only enforcement on POST/DELETE, GET /api/uploads auth + 404 + path-traversal + disallowed-extension, JPEG content-type variant, and full upload-then-delete cycle (DB field cleared + object removed + previous URL 404s).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/floors/{floor_id}/layout", "issue": "Content-type sniffing is purely client-supplied (file.content_type startswith 'image/') — a hostile client can still upload arbitrary bytes labelled image/png with a .png extension. Consider validating with magic-bytes (Pillow/imghdr) for defense in depth."},
+      {"endpoint": "POST /api/floors/{floor_id}/layout", "issue": "Size check happens after the entire payload is buffered into memory via await file.read(). For 10MB+ rejected uploads the pod still allocates the buffer; consider streaming/chunked size check or rely on starlette max_request_size."},
+      {"endpoint": "DELETE /api/floors/{floor_id}/layout", "issue": "On delete we sniff every allowed extension (png/jpg/jpeg/gif/webp) and call storage.exists()+delete() per ext. With OBSStorage that's up to 5 HEAD calls per delete — would be cheaper to persist the actual filename/key on the floor record at upload time."},
+      {"endpoint": "GET /api/uploads/{filename}", "issue": "Sanitization strips '..' chars but the regex `[^a-zA-Z0-9._-]` already removes '/', so `../etc/passwd` becomes `..etcpasswd` — the explicit `'..' in safe_name` check then rejects it. Logic is sound but a comment would help future maintainers."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_floor_layout_storage.py",
+    "/app/test_reports/pytest/pytest_floor_layout_storage.xml"
+  ],
+  "action_items": [
+    "Optional hardening: validate uploaded image with magic bytes in addition to client content-type.",
+    "Optional perf: store the exact storage key on the floor record so DELETE doesn't probe all extensions (matters for OBS).",
+    "Consider returning 413 explicitly (instead of 400) for oversized uploads to align with HTTP semantics."
+  ],
+  "critical_code_review_comments": [
+    "buildings.py upload_floor_layout: content-type validation only checks startswith('image/') from the client header — server should also verify magic bytes for OBS deployments where uploads are public-readable.",
+    "DELETE handler iterates ALLOWED_IMAGE_EXTENSIONS and calls storage.exists()+delete() for each — fine for LocalStorage (cheap stat) but on OBS this is N round-trips per delete. Persist the storage key on the floor doc at upload time.",
+    "storage/__init__.py get_storage() is a process-global singleton — STORAGE_TYPE env changes after first call require process restart (documented behaviour, just worth noting).",
+    "LocalStorage.put writes synchronously via open(...).write() inside an async route handler — small files only so it's fine in practice, but technically blocks the event loop. aiofiles would be cleaner."
+  ],
+  "updated_files": ["/app/backend/tests/test_floor_layout_storage.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "admin.test@cebuana.com / Test123! ; user.test@cebuana.com / Test123!",
+  "seed_data_creation": "Each test creates a throwaway building (TEST_storage_* / TEST_delete_*) with 1 floor and deletes it in fixture teardown. No residual data should remain.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Storage refactor is solid for LocalStorage backend. OBSStorage path was NOT exercised live (no OBS endpoint in preview). If OBS deployment is later tested, set STORAGE_TYPE=obs + OBS_* env vars and re-run /app/backend/tests/test_floor_layout_storage.py — same 15 tests should pass against OBS.",
+  "rca of the issue": "N/A — no bugs found. All listed features behave as specified."
+}

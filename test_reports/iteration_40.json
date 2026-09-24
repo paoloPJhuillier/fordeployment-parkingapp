@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend retest of TCID-LOGIN-005 after main agent added noValidate to LoginPage <form>. All three requested checks now PASS. Custom sonner toast 'Please enter a valid email address' fires correctly for invalid email format ('foo'), browser-native HTML5 popup is no longer triggered, form remains visible. Unknown valid-format email ('unknown@example.com') triggers the 'Invalid credentials' toast with form intact (no blank page). Admin login regression with admin.test@cebuana.com / Test123! still navigates to /admin successfully. Backend whitespace regression for TCID-LOGIN-006 also re-confirmed (422 with 'whitespace' in detail).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verification_matrix": {
+    "TCID-LOGIN-005_invalid_email_toast": "PASS - Toast 'Please enter a valid email address' shown immediately when submitting email='foo' password='Test123!'. Browser-native popup no longer intercepts. Form remains visible.",
+    "TCID-LOGIN-005_unknown_email_graceful": "PASS - Toast 'Invalid credentials' shown for 'unknown@example.com' / 'Test123!'. Backend returned 401, form stayed visible, page did not blank out.",
+    "REGRESSION_admin_login": "PASS - admin.test@cebuana.com / Test123! navigated to /admin route as expected.",
+    "TCID-LOGIN-006_backend_whitespace_422": "PASS - POST /api/auth/login with password=' Test123!' returns 422, detail includes 'Password cannot start or end with whitespace' (substring 'whitespace' present)."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_qat_4th_pass.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "LoginPage.js line 172 now correctly declares <form onSubmit={handleLogin} className=\"space-y-4\" noValidate>. With noValidate present, the browser skips HTML5 constraint checks and the JS handler runs the regex + toast.error path as designed. Email input still uses type='email' which preserves the email keyboard hint on mobile - good UX.",
+    "Client-side regex /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/ catches missing @, missing domain, missing TLD, and whitespace cases before any network round-trip. Backend EmailStr remains source of truth.",
+    "Login error path correctly extracts error.response.data.detail and falls back to a generic 'Login failed' message; never lets an unhandled error blank the page. Confirmed visually."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (1/1 regression curl)",
+    "frontend": "100% (3/3 frontend checks)"
+  },
+  "test_credentials": {
+    "admin": "admin.test@cebuana.com / Test123!"
+  },
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "DB_TYPE=couchbase. TCID-LOGIN-005 is fully resolved after noValidate was added to <form> in /app/frontend/src/pages/LoginPage.js (line 172). The previously identified gap is closed. No remaining frontend bugs from the QAT 4th Pass list. Outstanding non-blocking items (TCID-ANALYTICS-016 / TCID-ANALYTICS-004) still require seeded recent reservations to exercise end-to-end on Couchbase but source review remained clean.",
+  "rca_of_the_issue": "Fix verified: <form ... noValidate> now lets the JS handler run first, so the regex check in handleLogin (lines 64-68 of LoginPage.js) executes and surfaces the QAT-required toast wording. Visual confirmation captured in screenshots; toast stack shows 'Please enter a valid email address' for the foo case and 'Invalid credentials' for the unknown@example.com case, with the login form remaining mounted in both."
+}

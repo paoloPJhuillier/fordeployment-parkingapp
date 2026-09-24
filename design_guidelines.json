@@ -1,0 +1,166 @@
+{
+  "identity": {
+    "persona": "E1",
+    "mission": "Create a top 1% corporate parking experience that blends utility with premium financial aesthetics.",
+    "principles": [
+      "Fusion over Imitation: Mix corporate reliability with hospitality warmth.",
+      "Emotion First: Parking is stressful; the app must be calming and assured.",
+      "Content is King: Clear data, legible status, instant confirmation.",
+      "Zoom in: Focus on the 'Spot' and the 'Time'.",
+      "Negative Space: Don't clutter the dashboard."
+    ]
+  },
+  "brand": {
+    "name": "Cebuana Lhuillier Parking",
+    "tone": "Professional, Secure, Efficient, Premium",
+    "archetype": "The Performance Pro (Efficiency) + Organic & Earthy (Trust)"
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Manrope, sans-serif",
+      "weights": ["600", "700", "800"],
+      "usage": "All page titles, section headers, and modal titles. Use tight tracking."
+    },
+    "body": {
+      "font_family": "Inter, sans-serif",
+      "weights": ["400", "500"],
+      "usage": "General text, form labels, data tables."
+    },
+    "mono": {
+      "font_family": "JetBrains Mono, monospace",
+      "usage": "License plates, time slots, reservation IDs."
+    }
+  },
+  "colors": {
+    "primary": {
+      "DEFAULT": "#006633",
+      "foreground": "#FFFFFF",
+      "hover": "#004d26",
+      "active": "#00331a"
+    },
+    "secondary": {
+      "DEFAULT": "#FFD700",
+      "foreground": "#000000",
+      "hover": "#E6C200",
+      "active": "#CCAD00"
+    },
+    "accent": {
+      "DEFAULT": "#FDB813",
+      "foreground": "#000000"
+    },
+    "background": {
+      "light": "#F8FAFC",
+      "dark": "#022c16",
+      "card_light": "#FFFFFF",
+      "card_dark": "#004d26"
+    },
+    "status": {
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#3B82F6"
+    },
+    "neutral": {
+      "50": "#F9FAFB",
+      "100": "#F3F4F6",
+      "200": "#E5E7EB",
+      "300": "#D1D5DB",
+      "400": "#9CA3AF",
+      "500": "#6B7280",
+      "600": "#4B5563",
+      "700": "#374151",
+      "800": "#1F2937",
+      "900": "#111827"
+    }
+  },
+  "visual_enhancers": {
+    "radius": "0.5rem",
+    "shadows": {
+      "card": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+      "hover": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+      "glow": "0 0 15px rgba(255, 215, 0, 0.3)"
+    },
+    "gradients": {
+      "gold_rush": "linear-gradient(135deg, #FFD700 0%, #FDB813 100%)",
+      "corporate_green": "linear-gradient(135deg, #006633 0%, #004d26 100%)"
+    },
+    "glassmorphism": {
+      "enabled": true,
+      "styles": "backdrop-blur-md bg-white/70 border border-white/20 shadow-sm"
+    }
+  },
+  "layout_strategy": {
+    "mobile": {
+      "type": "Stack",
+      "navigation": "Bottom Tab Bar",
+      "padding": "p-4",
+      "gap": "gap-4"
+    },
+    "desktop": {
+      "type": "Sidebar + Dashboard Grid",
+      "navigation": "Left Sidebar (Collapsible)",
+      "grid": "grid-cols-12 gap-6",
+      "padding": "p-8"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#006633] text-white hover:bg-[#004d26] rounded-full px-6 py-2 font-semibold shadow-md transition-all active:scale-95",
+      "secondary": "bg-[#FFD700] text-black hover:bg-[#E6C200] rounded-full px-6 py-2 font-semibold shadow-sm transition-all active:scale-95",
+      "ghost": "bg-transparent text-[#006633] hover:bg-[#006633]/10 rounded-full px-4 py-2 font-medium"
+    },
+    "cards": {
+      "base": "bg-white rounded-xl border border-gray-100 shadow-card hover:shadow-hover transition-shadow duration-300",
+      "interactive": "cursor-pointer active:scale-[0.99] transition-transform"
+    },
+    "inputs": {
+      "base": "bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#006633] focus:border-transparent outline-none transition-all",
+      "error": "border-red-500 focus:ring-red-200"
+    }
+  },
+  "image_urls": {
+    "hero_login": {
+      "url": "https://images.unsplash.com/photo-1760246964044-1384f71665b9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA0MTJ8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBjb3Jwb3JhdGUlMjBvZmZpY2UlMjBidWlsZGluZyUyMGV4dGVyaW9yJTIwZ2xhc3N8ZW58MHx8fHwxNzcwNjU1MjIyfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Modern corporate office building at dusk, used for Login/Landing background.",
+      "category": "background"
+    },
+    "parking_context": {
+      "url": "https://images.unsplash.com/photo-1649288687380-a945562fabfb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODR8MHwxfHNlYXJjaHwyfHx1bmRlcmdyb3VuZCUyMHBhcmtpbmclMjBsb3QlMjBicmlnaHQlMjBsaWdodGluZ3xlbnwwfHx8fDE3NzA2NTUyMjV8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Brightly lit underground parking, used for 'My Reservations' or 'Book Parking' headers.",
+      "category": "context"
+    },
+    "user_avatar": {
+      "url": "https://images.unsplash.com/photo-1758518727592-706e80ebc354?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBjb3Jwb3JhdGUlMjBlbXBsb3llZSUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwwfHx8fDE3NzA2NTUyNDJ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Professional woman avatar for user profile demo.",
+      "category": "avatar"
+    }
+  },
+  "instructions_to_main_agent": {
+    "general": "You are building a high-fidelity corporate parking app. Do not make it look like a generic Bootstrap template. Use the 'Cebuana Green' and 'Gold' strategically. Gold is for accents, Green is for structure.",
+    "theme_logic": "Default to Light Mode for the corporate environment. Use Dark Mode only if explicitly toggled or for the 'Attendant' night-shift view.",
+    "mobile_first": "The 'User' and 'Attendant' flows MUST be mobile-optimized. Use bottom sheets (Drawers) for forms instead of modals on mobile.",
+    "charts": "Use Recharts for the Admin Dashboard. Style them to match the Green/Gold palette.",
+    "maps": "For the 'Building/Floor Visualization', use a CSS Grid or Canvas approach to draw the parking slots. Do not try to implement a full 3D map unless necessary; a clean 2D 'Cinema Seat' style map is better for usability."
+  },
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy",
+    "Use glass-morphism effects with backdrop filters (12-24px blur)",
+    "You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file. This disrupts the human natural reading flow of text",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯📚🎭🎬🎪🎉🎊🎁🎀🎂🍰🎈🎨🎰💰💵💳🏦💎🪙💸🤑📊📈📉💹🔢🏆🥇 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories (especially sponsor logos) = main agent will use placeholder text which is FORBIDDEN",
+    "Prioritize using pre-existing components from src/components/ui when applicable",
+    "Create new components that match the style and conventions of existing components when needed",
+    "Examine existing components to understand the project's component patterns before creating new ones",
+    "Components MUST use named exports (export const ComponentName = ...)",
+    "Pages MUST use default exports (export default function PageName() {...})",
+    "Use sonner for toasts",
+    "Sonner component are located in /app/src/components/ui/sonner.tsx"
+  ]
+}

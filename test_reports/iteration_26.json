@@ -1,0 +1,95 @@
+{
+  "summary": "Pre-production full scan completed for Parking Reservation App. All 26 backend tests passed (1 skipped). Frontend UI tests verified login flows, booking page with hourly timeline, admin parking config, building policies, notifications, and reservations pages.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"note": "Test for QR code generation was skipped due to no active reservations - requires booking first"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard", "issues": ["Console warnings about chart width/height being -1 - likely recharts component not properly sized when hidden or during transition"]}
+    ]
+  },
+  "test_results": {
+    "auth": {
+      "admin_login": "PASS - Cookie-based auth working, role=admin",
+      "user_login": "PASS - role=user",
+      "attendant_login": "PASS - role=attendant",
+      "invalid_login": "PASS - Returns 401",
+      "role_based_access": "PASS - User denied access to admin /api/zones (403)"
+    },
+    "buildings": {
+      "get_buildings": "PASS - Returns building list with floors",
+      "building_structure": "PASS - CL Tower Makati has floors with slots"
+    },
+    "hourly_booking": {
+      "slots_available_with_timeline": "PASS - Returns 24-hour timeline (hours 0-23)",
+      "overlap_validation_same_user": "PASS - Same user cannot book overlapping times",
+      "ui_slot_selection": "PASS - Clicking slot expands timeline panel below",
+      "ui_hour_selection": "PASS - Contiguous hour selection works",
+      "ui_booking_summary": "PASS - Shows confirm button after selection"
+    },
+    "reservations": {
+      "get_user_reservations": "PASS",
+      "cancel_reservation": "PASS - Status changes to cancelled"
+    },
+    "waitlist": {
+      "waitlist_count": "PASS - Returns count, building_id, date",
+      "waitlist_status": "PASS - Returns on_waitlist status",
+      "waitlist_join_leave": "PASS - Join returns position, duplicate rejected, leave works"
+    },
+    "parking_config": {
+      "get_config": "PASS - Returns waitlist_enabled, waitlist_notification_window_minutes",
+      "save_config": "PASS - Saves including waitlist fields",
+      "ui_waitlist_toggle": "PASS - Toggle and notification window input present",
+      "ui_no_show_text": "PASS - Text says 'after the reservation is tagged as no-show' NOT 'after end time'"
+    },
+    "building_policies": {
+      "get_policy": "PASS - Pacific Star has enabled=true, policy_type=dedicated_slot",
+      "slot_registrations": "PASS - Returns list of registrations",
+      "ui_zone_filtered_users": "PASS - User dropdown shows 8 zone-filtered users",
+      "ui_vehicle_dropdown": "PASS - Vehicle dropdown appears after selecting user"
+    },
+    "notifications": {
+      "get_notifications": "PASS",
+      "unread_count": "PASS",
+      "mark_all_read": "PASS",
+      "ui_notification_bell": "PASS - Shows dropdown with no-show notifications"
+    },
+    "zones": {
+      "get_zones": "PASS - Returns zones with building_ids, user_ids",
+      "user_building_assignments": "PASS"
+    },
+    "attendant": {
+      "daily_reservations": "PASS",
+      "buildings": "PASS"
+    },
+    "no_show": {
+      "admin_reservations_display": "PASS - Shows no-show timestamp in table (data-testid admin-no-show-time-{id})",
+      "api_report_no_show": "Covered by previous iteration tests"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_preproduction_scan.py",
+    "/app/test_reports/pytest/pytest_preproduction_scan.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Console warnings about chart dimensions in Dashboard - recharts components may need min-width/height set",
+    "Missing DialogContent aria-describedby warning in Building Policies registration dialog"
+  ],
+  "updated_files": ["/app/backend/tests/test_preproduction_scan.py"],
+  "success_rate": {"backend": "100% (26/26 passed, 1 skipped)", "frontend": "100%"},
+  "test_credentials": {
+    "admin": "admin.test@cebuana.com / Test123!",
+    "user": "user.test@cebuana.com / Test123!",
+    "attendant": "attendant.test@cebuana.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing test accounts",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All major features verified working: multi-role auth, buildings/floors/slots, hourly booking with 24-hour timeline, waitlist, parking config, building policies with zone-filtered users and vehicle dropdowns, notifications, zones, attendant features. No-show timestamp displays in admin reservations. The recharts console warnings are cosmetic and don't affect functionality."
+}

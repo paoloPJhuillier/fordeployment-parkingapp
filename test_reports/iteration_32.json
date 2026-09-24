@@ -1,0 +1,85 @@
+{
+  "summary": "Iteration 32 - QR Scanner upgrade testing. 6 QR-CAM test cases executed. 5 PASS initially, 1 critical bug found and fixed (QR-CAM-02). After fix all 6 PASS. Backend: 10/10 tests pass. Full scan→confirm e2e flow works after bug fix.",
+  "test_cases": {
+    "QR-CAM-01": {
+      "status": "PASS",
+      "description": "Dialog opens when clicking 'Scan QR'. In headless Playwright (no camera), automatically falls back to manual mode. QR icon in header present, manual token input present (data-testid='qr-token-input'), 'Use Camera' button present, 'Look Up' button (data-testid='qr-scan-submit-btn') present."
+    },
+    "QR-CAM-02": {
+      "status": "PASS (after bug fix)",
+      "description": "Full e2e flow: Created pending reservation as user.test@cebuana.com, entered QR token in manual mode, clicked Look Up. After bug fix: success card shows 'Reservation Confirmed!' with green checkmark, user name (Test User), vehicle plate (ABC 1234), building/floor/slot (CL Tower Makati • Floor 1 • 1A2), date+time (2026-03-03 · 14:00–17:00). API calls: GET /scan/{token} then PUT /reservations/{id}/confirm.",
+      "bug_found": "BUG FIXED: handleQRDetected used reservation.id but /scan/{qr_token} API returns reservation_id (not id). confirmReservation(undefined) was called → PUT /reservations/undefined/confirm → 404 → error phase shown.",
+      "fix_applied": "Changed reservation.id to reservation.reservation_id in AttendantDashboard.js line 108"
+    },
+    "QR-CAM-03": {
+      "status": "PASS",
+      "description": "Invalid token 'invalid-token-123' returns error phase: red XCircle icon, 'Scan Failed' title, 'Reservation not found' error message, 'Try Again' and 'Enter Manually' buttons visible."
+    },
+    "QR-CAM-04": {
+      "status": "PASS",
+      "description": "After error phase, clicking 'Try Again' resets scanner: manual input re-appears empty (token cleared), ready for new input."
+    },
+    "QR-CAM-05": {
+      "status": "PASS (mechanism verified)",
+      "description": "fetchReservations() is called after successful scan (confirmed via API call trace: GET /attendant/daily-reservations appears in API calls after scan). Count stays 0 in test environment because test reservation is in CL Tower Makati but attendant is assigned to a different building - expected behavior. Auto-refresh mechanism is correctly implemented."
+    },
+    "QR-CAM-06": {
+      "status": "PASS",
+      "description": "Re-scanning already-confirmed reservation (token AuORh-92FwbKzHWLSG2Wqw): Shows 'Already Confirmed' with green checkmark (not 'Reservation Confirmed!'). Subtitle: 'This reservation was already checked in.' Full reservation details shown. confirmReservation is correctly skipped for status=confirmed."
+    }
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "note": "Login rate limit (5 per minute) causes test failures when all tests run sequentially. Fixed by adding token caching in test file."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "QR scan → confirm",
+        "issue": "FIXED: handleQRDetected used reservation.id but /scan/{qr_token} API returns reservation_id. confirmReservation(undefined) was called causing 404 and error phase.",
+        "fix": "Changed reservation.id → reservation.reservation_id in AttendantDashboard.js line 108"
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_qr_scanner.py",
+    "/app/test_reports/pytest/qr_scanner_final.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BUG FIXED: AttendantDashboard.js line 108: reservation.id → reservation.reservation_id. The /scan/{qr_token} endpoint returns reservation_id as the key, not id. Frontend was using reservation.id which was undefined.",
+    "The /scan/{qr_token} endpoint returns reservation_id while the rest of the app uses id. Consider aliasing the field in the backend to also include id for consistency, or document this as a known discrepancy.",
+    "QR-CAM-05 auto-refresh works mechanically but test environment has attendant assigned to a different building than where reservations are created. For full end-to-end refresh count test, the test user and attendant should share the same building assignment."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/attendant/AttendantDashboard.js",
+    "/app/backend/tests/test_qr_scanner.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests pass)",
+    "frontend": "100% (6/6 QR-CAM scenarios pass after bug fix)"
+  },
+  "test_credentials": {
+    "user": "user.test@cebuana.com / Test123!",
+    "attendant": "attendant.test@cebuana.com / Test123!",
+    "admin": "admin.test@cebuana.com / Test123!"
+  },
+  "seed_data_creation": "Created test reservations: Reservation ID 99f8a72c-a253-494c-8fa5-a7d45725e0b4 (token: yZDwaNviLoVbdOYt-brRAg) - confirmed via scan. Reservation 0c2f2ed0-69b3-475d-8130-e2e92c833d64 (token: AuORh-92FwbKzHWLSG2Wqw) - used for QR-CAM-06 (already confirmed). Both in CL Tower Makati, slot 1A1/1A2, user.test@cebuana.com.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "QR Scanner feature fully tested. Critical bug (reservation.id vs reservation_id) found and fixed. All 6 QR-CAM scenarios pass. Backend: GET /api/scan/{qr_token} returns 'reservation_id' field (not 'id'), PUT /api/reservations/{id}/confirm works for attendant role. Frontend: manual fallback works in headless, success/error/retry phases all work correctly. Building assignment: attendant.test is assigned to dcae62c5-901a-4bf3-bf7c-c5e116232c93, test reservations created in fe5ec3b7-38aa-48aa-8572-762afde16bec (CL Tower Makati). The scan endpoint works cross-building but the daily list only shows the attendant's assigned buildings.",
+  "rca_of_the_issue": {
+    "bug": "QR Scan → Confirm flow fails for pending reservations",
+    "root_cause": "GET /api/scan/{qr_token} response has field named 'reservation_id' (not 'id'). Frontend handleQRDetected function accessed reservation.id which was undefined (JavaScript silently returns undefined for missing keys). This caused confirmReservation(undefined) to call PUT /api/reservations/undefined/confirm → 404 'Reservation not found' → catch block triggered → error phase shown instead of success.",
+    "reproduction": "1. Login as attendant. 2. Click Scan QR. 3. Enter any valid pending reservation token in manual mode. 4. Click Look Up. 5. See error 'Reservation not found' instead of success.",
+    "fix": "In /app/frontend/src/pages/attendant/AttendantDashboard.js line 108: changed reservation.id to reservation.reservation_id",
+    "affected_scenarios": ["QR-CAM-02 (pending reservation confirmation)"],
+    "not_affected": ["QR-CAM-06 (already confirmed - confirm call skipped when status=confirmed)"]
+  }
+}

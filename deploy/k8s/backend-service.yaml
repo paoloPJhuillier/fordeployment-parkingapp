@@ -1,0 +1,23 @@
+# A single Service fronts BOTH the leader and worker pods. The Service
+# selector is intentionally broad (`app.kubernetes.io/name: parking-backend`)
+# so traffic load-balances across all backend replicas regardless of role.
+#
+# Service name is `backend` — that matches the upstream baked into the
+# frontend nginx config (`upstream parking_backend { server backend:8001; }`),
+# so no image rebuild is required when moving from docker-compose to CCE.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: parking-app
+  labels:
+    app.kubernetes.io/name: parking-backend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: parking-backend
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http
+      protocol: TCP

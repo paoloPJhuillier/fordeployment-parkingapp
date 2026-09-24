@@ -1,0 +1,90 @@
+# Backend "leader" deployment.
+#
+# WHY a separate deployment?
+# --------------------------
+# The backend has periodic background loops (auto_mark_no_shows,
+# check_waitlist_expiry, auto_release_slots — see services/background.py).
+# These MUST run on exactly one pod, otherwise a 4-replica cluster will
+# fire each timer 4 times. We achieve "exactly one" by keeping a dedicated
+# Deployment with replicas=1 and RUN_BACKGROUND_TASKS=true. All other API
+# traffic is served by `backend-worker` pods which have the flag off.
+#
+# This split is intentionally simpler than full leader election (which
+# would need a CRD or a Lease). It costs us one always-on pod in exchange
+# for zero distributed-lock complexity.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parking-backend-leader
+  namespace: parking-app
+  labels:
+    app.kubernetes.io/name: parking-backend
+    app.kubernetes.io/component: leader
+spec:
+  replicas: 1
+  strategy:
+    # Recreate, not RollingUpdate — we never want two leaders running at once.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: parking-backend
+      app.kubernetes.io/component: leader
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: parking-backend
+        app.kubernetes.io/component: leader
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: backend
+          image: REGISTRY/parking-backend:TAG
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8001
+          env:
+            - name: RUN_BACKGROUND_TASKS
+              value: "true"
+          envFrom:
+            - configMapRef:
+                name: parking-backend-config
+            - secretRef:
+                name: parking-backend-secrets
+          volumeMounts:
+            - name: cb-ca
+              mountPath: /etc/ssl
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "768Mi"
+      volumes:
+        - name: cb-ca
+          secret:
+            secretName: parking-cb-ca
+            items:
+              - key: cb-ca.pem
+                path: cb-ca.pem

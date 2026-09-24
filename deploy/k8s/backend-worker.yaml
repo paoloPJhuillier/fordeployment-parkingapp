@@ -1,0 +1,110 @@
+# Backend "worker" deployment — handles the bulk of API traffic.
+#
+# RUN_BACKGROUND_TASKS=false on every replica so the periodic loops only
+# run on the leader pod (see backend-leader.yaml). Scale this freely with
+# the HPA below or by editing `replicas`.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parking-backend-worker
+  namespace: parking-app
+  labels:
+    app.kubernetes.io/name: parking-backend
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: parking-backend
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: parking-backend
+        app.kubernetes.io/component: worker
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: backend
+          image: REGISTRY/parking-backend:TAG
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8001
+          env:
+            - name: RUN_BACKGROUND_TASKS
+              value: "false"
+          envFrom:
+            - configMapRef:
+                name: parking-backend-config
+            - secretRef:
+                name: parking-backend-secrets
+          volumeMounts:
+            - name: cb-ca
+              mountPath: /etc/ssl
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "768Mi"
+      volumes:
+        - name: cb-ca
+          secret:
+            secretName: parking-cb-ca
+            items:
+              - key: cb-ca.pem
+                path: cb-ca.pem
+---
+# Horizontal Pod Autoscaler for the workers. Leader is left alone.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: parking-backend-worker
+  namespace: parking-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: parking-backend-worker
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="5" skipped="0" tests="10" time="3.912" timestamp="2026-03-03T10:49:13.999866+00:00" hostname="agent-env-783d736a-1745-4f17-9ef9-662279f1bf3b"><testcase classname="backend.tests.test_qr_scanner.TestScanQREndpoint" name="test_scan_valid_token_returns_reservation_details" time="1.067" /><testcase classname="backend.tests.test_qr_scanner.TestScanQREndpoint" name="test_scan_invalid_token_returns_404" time="0.451" /><testcase classname="backend.tests.test_qr_scanner.TestScanQREndpoint" name="test_scan_requires_attendant_role" time="0.498" /><testcase classname="backend.tests.test_qr_scanner.TestScanQREndpoint" name="test_scan_requires_authentication" time="0.126" /><testcase classname="backend.tests.test_qr_scanner.TestConfirmReservationEndpoint" name="test_confirm_pending_reservation_succeeds" time="1.158" /><testcase classname="backend.tests.test_qr_scanner.TestConfirmReservationEndpoint" name="test_confirm_with_undefined_id_returns_404" time="0.108"><failure message="AssertionError: Login failed for attendant.test@cebuana.com: {&quot;error&quot;:&quot;Rate limit exceeded: 5 per 1 minute&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">backend/tests/test_qr_scanner.py:170: in test_confirm_with_undefined_id_returns_404
+    attendant_token = get_token(ATTENDANT_EMAIL, ATTENDANT_PASS)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/tests/test_qr_scanner.py:28: in get_token
+    assert r.status_code == 200, f"Login failed for {email}: {r.text}"
+E   AssertionError: Login failed for attendant.test@cebuana.com: {"error":"Rate limit exceeded: 5 per 1 minute"}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_qr_scanner.TestConfirmReservationEndpoint" name="test_confirm_requires_attendant_role" time="0.101"><failure message="AssertionError: Login failed for user.test@cebuana.com: {&quot;error&quot;:&quot;Rate limit exceeded: 5 per 1 minute&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">backend/tests/test_qr_scanner.py:180: in test_confirm_requires_attendant_role
+    user_token = get_token(USER_EMAIL, USER_PASS)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/tests/test_qr_scanner.py:28: in get_token
+    assert r.status_code == 200, f"Login failed for {email}: {r.text}"
+E   AssertionError: Login failed for user.test@cebuana.com: {"error":"Rate limit exceeded: 5 per 1 minute"}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_qr_scanner.TestQRScanFlowIntegration" name="test_full_scan_confirm_flow" time="0.094"><failure message="AssertionError: Login failed for user.test@cebuana.com: {&quot;error&quot;:&quot;Rate limit exceeded: 5 per 1 minute&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">backend/tests/test_qr_scanner.py:218: in test_full_scan_confirm_flow
+    user_token = get_token(USER_EMAIL, USER_PASS)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/tests/test_qr_scanner.py:28: in get_token
+    assert r.status_code == 200, f"Login failed for {email}: {r.text}"
+E   AssertionError: Login failed for user.test@cebuana.com: {"error":"Rate limit exceeded: 5 per 1 minute"}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_qr_scanner.TestQRScanFlowIntegration" name="test_scan_already_confirmed_reservation" time="0.099"><failure message="AssertionError: Login failed for user.test@cebuana.com: {&quot;error&quot;:&quot;Rate limit exceeded: 5 per 1 minute&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">backend/tests/test_qr_scanner.py:287: in test_scan_already_confirmed_reservation
+    user_token = get_token(USER_EMAIL, USER_PASS)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/tests/test_qr_scanner.py:28: in get_token
+    assert r.status_code == 200, f"Login failed for {email}: {r.text}"
+E   AssertionError: Login failed for user.test@cebuana.com: {"error":"Rate limit exceeded: 5 per 1 minute"}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_qr_scanner.TestDailyReservationsEndpoint" name="test_daily_reservations_reflect_confirmed_status" time="0.092"><failure message="AssertionError: Login failed for user.test@cebuana.com: {&quot;error&quot;:&quot;Rate limit exceeded: 5 per 1 minute&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">backend/tests/test_qr_scanner.py:333: in test_daily_reservations_reflect_confirmed_status
+    user_token = get_token(USER_EMAIL, USER_PASS)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/tests/test_qr_scanner.py:28: in get_token
+    assert r.status_code == 200, f"Login failed for {email}: {r.text}"
+E   AssertionError: Login failed for user.test@cebuana.com: {"error":"Rate limit exceeded: 5 per 1 minute"}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase></testsuite></testsuites>

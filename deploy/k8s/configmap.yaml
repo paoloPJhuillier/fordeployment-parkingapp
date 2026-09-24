@@ -1,0 +1,63 @@
+# Non-secret configuration for the backend pods.
+#
+# Anything that varies per environment but is NOT sensitive belongs here.
+# Sensitive values (Couchbase password, JWT secret, OBS keys, first-admin
+# password) live in the companion `secret.example.yaml`.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: parking-backend-config
+  namespace: parking-app
+data:
+  # -- Database -----------------------------------------------------------
+  # Couchbase is the production default; the abstraction layer also speaks
+  # MongoDB if you flip DB_TYPE=mongodb.
+  DB_TYPE: "couchbase"
+  COUCHBASE_CONNECTION_STRING: "couchbases://couchbase.your-hcs.local"
+  COUCHBASE_BUCKET: "db_parking"
+  COUCHBASE_DEPLOYMENT: "enterprise"          # capella | enterprise
+  COUCHBASE_TLS_VERIFY: "peer"                # peer | none (none = self-signed dev)
+  COUCHBASE_TRUST_STORE_PATH: "/etc/ssl/cb-ca.pem"
+
+  # If you ever fall back to MongoDB inside the cluster, set DB_TYPE=mongodb
+  # and provide MONGO_URL via the secret.
+  DB_NAME: "parking"
+
+  # -- Auth / cookies -----------------------------------------------------
+  JWT_ALGORITHM: "HS256"
+  JWT_EXPIRATION_HOURS: "0.5"
+  COOKIE_SECURE: "true"
+  CORS_ORIGINS: ""                            # frontend nginx is same-origin
+  FIRST_ADMIN_EMAIL: "admin@yourcompany.local"
+  FIRST_ADMIN_COMPANY: "Your Company"
+
+  # -- Storage (Huawei OBS / S3) -----------------------------------------
+  STORAGE_TYPE: "obs"                         # local | obs
+  OBS_ENDPOINT: "https://obs.your-region.your-hcs.local"
+  OBS_BUCKET: "parking-uploads"
+  OBS_REGION: "default"
+  OBS_KEY_PREFIX: "uploads/"
+
+  # -- Misc ---------------------------------------------------------------
+  # UPLOAD_DIR is only consulted when STORAGE_TYPE=local; harmless otherwise.
+  UPLOAD_DIR: "/var/lib/parking/uploads"
+
+  # -- Optional features (toggled by Ops) --------------------------------
+  # AI Insights — LLM-powered analytics on the admin Reports page. Calls
+  # out to the public internet via the Emergent LLM key broker.
+  #   "true"  : force on (will 503 at request time if EMERGENT_LLM_KEY is missing)
+  #   "false" : force off (admin UI hides the surface; endpoint returns 503)
+  #   unset   : auto — enabled iff EMERGENT_LLM_KEY in the Secret is non-empty.
+  # Most on-prem HCS deployments leave this unset and provide an empty
+  # EMERGENT_LLM_KEY in the Secret to keep the feature dark.
+  AI_INSIGHTS_ENABLED: ""
+
+  # Parking-attendant flow.
+  #   "true"  (default): on-site attendants confirm arrivals / report no-shows.
+  #   "false"          : site has no attendants. Parkers self-check-in via
+  #                      the app within SELF_CHECKIN_WINDOW_MINUTES of their
+  #                      booked start time; otherwise the reservation is
+  #                      auto-flipped to no-show, the slot is released, and
+  #                      the next person on the waitlist is notified.
+  ATTENDANT_MODE_ENABLED: "true"
+  SELF_CHECKIN_WINDOW_MINUTES: "15"   # clamped to 5–240

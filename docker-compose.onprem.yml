@@ -1,0 +1,101 @@
+# Parking Reservation — Huawei Cloud Stack (on-prem) compose
+#
+# This file is for the FINAL on-prem host. It pulls pre-built images from
+# the customer's HCS Docker registry — does NOT build locally. Build and
+# push happens once from a developer machine via:
+#   ./scripts/build_and_push_images.sh
+#
+# What you supply at the on-prem host:
+#   1. .env                         — see .env.onprem.example
+#   2. nginx.onprem.conf            — bind-mounted into the frontend container
+#   3. ${TLS_FULLCHAIN_HOST_PATH}   — server cert + chain (PEM)
+#   4. ${TLS_PRIVKEY_HOST_PATH}     — server private key (PEM)
+#   5. ${COUCHBASE_TRUST_STORE_HOST_PATH} — Couchbase Enterprise CA cert (PEM)
+#
+# Bring up:
+#   docker compose -f docker-compose.onprem.yml --env-file .env up -d
+# Bring down (containers only, data preserved):
+#   docker compose -f docker-compose.onprem.yml down
+# Bring down (containers + volumes — DESTRUCTIVE):
+#   docker compose -f docker-compose.onprem.yml down -v
+
+name: parking-app
+
+services:
+
+  backend:
+    image: ${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/parking-backend:${IMAGE_TAG:-latest}
+    container_name: parking_backend
+    restart: unless-stopped
+    environment:
+      DB_TYPE: couchbase
+
+      # Couchbase Enterprise (on-prem)
+      COUCHBASE_CONNECTION_STRING: ${COUCHBASE_CONNECTION_STRING}
+      COUCHBASE_BUCKET: ${COUCHBASE_BUCKET}
+      COUCHBASE_USERNAME: ${COUCHBASE_USERNAME}
+      COUCHBASE_PASSWORD: ${COUCHBASE_PASSWORD}
+      COUCHBASE_DEPLOYMENT: enterprise
+      COUCHBASE_TRUST_STORE_PATH: /etc/ssl/cb-ca.pem
+      COUCHBASE_TLS_VERIFY: ${COUCHBASE_TLS_VERIFY:-peer}
+
+      # Auth / JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-0.5}
+
+      # Default admin override (seeded only on first boot)
+      FIRST_ADMIN_EMAIL: ${FIRST_ADMIN_EMAIL}
+      FIRST_ADMIN_PASSWORD: ${FIRST_ADMIN_PASSWORD}
+      FIRST_ADMIN_COMPANY: ${FIRST_ADMIN_COMPANY:-Cebuana Lhuillier}
+
+      # Background maintenance loops. ONLY one replica should run them; set
+      # this to "false" on every additional replica.
+      RUN_BACKGROUND_TASKS: ${RUN_BACKGROUND_TASKS:-true}
+
+      # CORS — for nginx-fronted same-origin deploys this is unused
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+
+    volumes:
+      - parking_uploads:/var/lib/parking/uploads
+      # Couchbase Enterprise cluster CA cert
+      - ${COUCHBASE_TRUST_STORE_HOST_PATH}:/etc/ssl/cb-ca.pem:ro
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+    expose:
+      - "8001"
+
+  frontend:
+    image: ${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/parking-frontend:${IMAGE_TAG:-latest}
+    container_name: parking_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    ports:
+      # Expose 80 (HTTP→HTTPS redirect) and 443 (TLS) on the host.
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+
+    volumes:
+      # Replace baked-in nginx config with the TLS-terminating one.
+      - ./frontend/nginx.onprem.conf:/etc/nginx/conf.d/app.conf:ro
+      # TLS material (host paths set in .env)
+      - ${TLS_FULLCHAIN_HOST_PATH}:/etc/ssl/parking/fullchain.pem:ro
+      - ${TLS_PRIVKEY_HOST_PATH}:/etc/ssl/parking/privkey.pem:ro
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  parking_uploads:

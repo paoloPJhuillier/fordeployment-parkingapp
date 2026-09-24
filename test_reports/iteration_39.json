@@ -1,0 +1,78 @@
+{
+  "summary": "QAT 4th Pass retest on Couchbase. 20/20 backend pytest PASS. Frontend: 6/8 PASS, 1 PARTIAL, 1 GAP. Critical gap: TCID-LOGIN-005 — login form does NOT show the custom toast 'Please enter a valid email address' because the form is missing the noValidate attribute, so the browser's native HTML5 popup ('Please include an @...') intercepts submission before handleLogin runs. Form does stay visible (no blank page), so the worst aspect of the bug is fixed, but the QAT-required toast wording is not surfaced. All other items verified PASS or PARTIAL. Backend regression (logins, list users/buildings, reports/stats, system endpoints, find_one_and_update on Couchbase) is fully green.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "LoginPage.js",
+        "issue": "Form element lacks noValidate, so HTML5 'Please include an @' popup fires before the custom toast 'Please enter a valid email address' can display. QAT-LOGIN-005 only partially fixed — form stays visible (good) but required toast wording is not shown.",
+        "selector": "form[onSubmit=handleLogin]",
+        "priority": "P1"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verification_matrix": {
+    "TCID-LOGIN-005_form_visible": "PASS — login form stays visible after invalid email submission",
+    "TCID-LOGIN-005_toast_wording": "FAIL — browser native popup intercepts; custom 'Please enter a valid email address' toast never shows. Add noValidate to <form>.",
+    "TCID-LOGIN-006_backend_422_whitespace": "PASS — leading space, trailing space, all-whitespace passwords all return 422 with 'whitespace' in detail",
+    "TCID-LOGIN-018_backend_change_pw_same": "PASS — POST /api/auth/change-password with new==current returns 400 with 'different' in detail",
+    "TCID-PARKING-CONFIG-007_task_registered": "PASS — services.background.auto_release_slots is async and registered via asyncio.create_task in server.py startup",
+    "TCID-PARKING-CONFIG-010_999_rejected": "PASS — booking_window_days=999 -> 422 with 'less than or equal to 30'",
+    "TCID-PARKING-CONFIG-010_zero_rejected": "PASS — booking_window_days=0 -> 422 with 'greater than or equal to 1'",
+    "TCID-BUILDING-MANAGEMENT-010_create_strict": "PASS — POST /api/buildings with 40-char name returns 422",
+    "TCID-BUILDING-MANAGEMENT-010_update_permissive": "PASS — PUT /api/buildings/{id} with 45-char name returns 200 and persists",
+    "TCID-BUILDING-MANAGEMENT-027_focus_refetch": "PASS — window.dispatchEvent(new Event('focus')) on /admin/buildings triggers a fresh GET /api/buildings request",
+    "TCID-EVENT-BLOCKING-012_multi_conflict_listing": "PASS (structural) — code in routes/event_blocks.py collects ALL conflicts in a single pass and joins with ', '. Empty slot_ids still 400; full multi-conflict integration test requires seeded reservations and was not exercised end-to-end this run.",
+    "TCID-EVENT-BLOCKING-013_X_close_no_validation_popup": "PASS — Add User dialog X close button has type='button'; dialog closes immediately; no 'Please fill in this field' leaks",
+    "TCID-ANALYTICS-004_date_range_single_click": "AMBIGUOUS — popover opens, single day click registered (button text updated), but resulting label shows the default 30-day range ('Mar 28 - Apr 27, 2026') so could not definitively confirm start==end semantics. Manual visual verification recommended; logic likely OK because UI updates after one click.",
+    "TCID-ANALYTICS-016_recent_reservations_sort": "NOT VERIFIABLE — Reports page Recent Reservations table currently shows 'No reservations found' (no recent reservations seeded for the test window on Couchbase). Sort code is in place per source review; cannot exercise without data.",
+    "TC-USER-MANAGEMENT-030_add_after_edit": "PASS (with note) — title reads 'Add New User'; first_name, last_name, email all empty after closing Edit dialog. Password field defaults to 'Changeme1' (admin default password — by design, NOT leakage from Edit). Reset logic working as intended.",
+    "TCID-DASHBOARD-008_chart_no_overlap": "PASS — Reservations by Building chart renders with widened Y-axis. All 6 building labels (CL Tower Makati, NCVI, KHO, Main Office, Pacific Star Building, Test Building 175514) are fully visible and not clipped.",
+    "REGRESSION_admin_login": "PASS",
+    "REGRESSION_user_login": "PASS",
+    "REGRESSION_attendant_login": "PASS",
+    "REGRESSION_list_users": "PASS (>=3 users)",
+    "REGRESSION_list_buildings_nested": "PASS (floors key present)",
+    "REGRESSION_reports_stats": "PASS (200)",
+    "REGRESSION_system_db_info": "PASS",
+    "REGRESSION_system_build_info": "PASS",
+    "REGRESSION_system_collection_stats": "PASS",
+    "REGRESSION_find_one_and_update_couchbase": "PASS — PUT /api/reservations/{bogus}/confirm returns 404 (not 500), find_one_and_update path stable on Couchbase"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_qat_4th_pass.py",
+    "/app/test_reports/pytest/pytest_qat_4th_pass.xml"
+  ],
+  "action_items": [
+    "Fix TCID-LOGIN-005 wording gap: add noValidate (or change <Input type='email'> to type='text') on the LoginPage <form> in /app/frontend/src/pages/LoginPage.js so the custom toast 'Please enter a valid email address' fires instead of the browser-native 'Please include an @' popup. The handleLogin function already implements the email regex + toast.error('Please enter a valid email address') — it just never runs because the browser blocks submit first.",
+    "(Optional) Seed a few reservations for the test window so TCID-ANALYTICS-016 sort and TCID-ANALYTICS-004 single-date semantics can be exercised end-to-end. Source review of /app/frontend/src/pages/admin/Reports.js suggests both fixes are wired correctly."
+  ],
+  "critical_code_review_comments": [
+    "models/user.py UserLogin.password validator raises 'Password cannot start or end with whitespace' which serializes into Pydantic's detail list; tests confirm 'whitespace' substring is present. Good defensive validation.",
+    "models/parking_config.py ParkingConfigCreate.booking_window_days uses Field(7, ge=1, le=30) — exactly what QAT requires; 422 messages standard Pydantic.",
+    "models/building.py BuildingUpdate is intentionally permissive (only min_length=1 on name, no max_length); BuildingCreate stays strict (max_length=30). Comment in source explicitly justifies the asymmetry — clean fix.",
+    "services/background.py auto_release_slots correctly: (1) reads each building's parking_configs.release_time, (2) compares HH:MM string-wise to current_time, (3) excludes 'maintenance' status, (4) skips slots with active reservations in the current minute, (5) update_many is single round trip per building. asyncio.sleep(60) inside while True is appropriate.",
+    "routes/event_blocks.py multi-conflict path: PASS 1 collects ALL conflicts via list, PASS 2 only inserts after the conflict list is empty. Detail message correctly handles single-vs-multi pluralisation.",
+    "components/ui/dialog.jsx X close button has type='button' which prevents form submission and the resulting browser-native validation popup. Global fix benefiting every dialog in the app.",
+    "LoginPage.js BUG: <form onSubmit={handleLogin}> is missing noValidate. handleLogin() already does the regex + toast.error, but it never executes for invalid-email cases because the browser-native validation runs first. Single-attribute fix."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_qat_4th_pass.py"
+  ],
+  "success_rate": {
+    "backend": "100% (20/20 pytest pass)",
+    "frontend": "75% (6 PASS + 1 PARTIAL + 1 GAP across 8 verifiable items; 2 not exercisable due to empty data)"
+  },
+  "test_credentials": {
+    "admin": "admin.test@cebuana.com / Test123!",
+    "user": "user.test@cebuana.com / Test123!",
+    "attendant": "attendant.test@cebuana.com / Test123!"
+  },
+  "seed_data_creation": "Backend test transiently creates and deletes one TEST_<uuid> building to verify TCID-BUILDING-MANAGEMENT-010 update permissiveness; cleaned up in finally block. No frontend-side data created.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "DB_TYPE=couchbase. Only one functional gap remaining: TCID-LOGIN-005 toast — needs noValidate on LoginPage <form>. Once main agent adds the attribute, retest by visiting /login, typing 'foo' in email + any password, clicking Sign In: expect a sonner toast 'Please enter a valid email address' AND form remains visible. Reports page Analytics-016/004 could not be exercised because the database has no recent reservations; consider seeding a couple of reservations dated within the last 30 days to enable end-to-end verification.",
+  "rca_of_the_issue": "TCID-LOGIN-005 RCA: LoginPage.js line ~172 declares <form onSubmit={handleLogin}>. The Email input is <Input type='email'>. With type='email' and the absence of `noValidate` on the form, modern browsers run HTML5 constraint validation BEFORE firing onSubmit. Result: when the user enters 'foo' the browser displays its built-in 'Please include an @' tooltip and never invokes handleLogin, so the custom validation block (lines 60-66) — which contains the QAT-required toast.error('Please enter a valid email address') — is unreachable for invalid-email cases. Two single-line fixes are equivalent: (a) add `noValidate` to the form element, or (b) change the email Input to type='text'. Option (a) is preferred because it preserves the email keyboard hint on mobile while letting the JS validator own the messaging."
+}

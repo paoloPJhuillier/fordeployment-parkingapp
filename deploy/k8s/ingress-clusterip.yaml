@@ -1,0 +1,28 @@
+# Option B — No Ingress object. Your Ops team wires an external LB (HCS
+# ELB, F5, etc.) directly to the cluster's NodePort or to a LoadBalancer
+# Service.
+#
+# Apply EITHER this file OR ingress-nginx.yaml — never both.
+#
+# This manifest exposes the frontend Service as a NodePort. The frontend's
+# bundled nginx already reverse-proxies /api/* to the `backend` Service, so
+# the external LB only needs to forward to ONE backend (the frontend pod's
+# port 80). Backend is left as ClusterIP — never exposed externally.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-nodeport
+  namespace: parking-app
+  labels:
+    app.kubernetes.io/name: parking-frontend
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: parking-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      # Pin a stable port if your LB needs it. Comment out to let K8s pick.
+      nodePort: 30080
+      protocol: TCP

@@ -1,0 +1,124 @@
+# Parking Reservation — Docker Compose
+#
+# Production posture: Couchbase ONLY (Capella or self-hosted Enterprise).
+# The optional `dev-mongo` profile spins up a local MongoDB for engineers
+# that want to iterate without provisioning a Couchbase cluster.
+#
+# Profiles
+#   (default)        : backend + frontend, expects external Couchbase cluster
+#   dev-mongo        : backend + frontend + local mongo (DB_TYPE=mongodb)
+#
+# Usage
+#   Production (Couchbase Capella OR Enterprise):
+#     cp .env.example .env   # set DB_TYPE=couchbase + COUCHBASE_* vars
+#     docker compose up -d --build
+#
+#   Local dev with bundled MongoDB:
+#     DB_TYPE=mongodb docker compose --profile dev-mongo up -d --build
+#
+# The frontend container reverse-proxies /api/* to the backend service by DNS,
+# so no CORS config is needed and browser cookies stay same-origin.
+
+name: parking-app
+
+services:
+
+  mongo:
+    image: mongo:7.0.31
+    container_name: parking_mongo
+    restart: unless-stopped
+    profiles: ["dev-mongo"]
+    environment:
+      MONGO_INITDB_DATABASE: ${DB_NAME:-parking}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    image: parking-backend:latest
+    container_name: parking_backend
+    restart: unless-stopped
+    environment:
+      # Database selection — Couchbase is the production default.
+      DB_TYPE: ${DB_TYPE:-couchbase}
+
+      # MongoDB (used when DB_TYPE=mongodb)
+      MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017}
+      DB_NAME: ${DB_NAME:-parking}
+
+      # Couchbase (used when DB_TYPE=couchbase). Same env vars work for
+      # both Capella and self-hosted Enterprise — only the optional
+      # COUCHBASE_DEPLOYMENT / TRUST_STORE / CERT / TLS_VERIFY toggles differ.
+      COUCHBASE_CONNECTION_STRING: ${COUCHBASE_CONNECTION_STRING:-}
+      COUCHBASE_BUCKET: ${COUCHBASE_BUCKET:-}
+      COUCHBASE_USERNAME: ${COUCHBASE_USERNAME:-}
+      COUCHBASE_PASSWORD: ${COUCHBASE_PASSWORD:-}
+      COUCHBASE_DEPLOYMENT: ${COUCHBASE_DEPLOYMENT:-capella}
+      COUCHBASE_TRUST_STORE_PATH: ${COUCHBASE_TRUST_STORE_PATH:-}
+      COUCHBASE_CERT_PATH: ${COUCHBASE_CERT_PATH:-}
+      COUCHBASE_TLS_VERIFY: ${COUCHBASE_TLS_VERIFY:-peer}
+
+      # Auth / JWT — MUST be supplied in .env for production
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-0.5}
+
+      # First admin override (seeded on first boot only; if blank, dev defaults
+      # are used and a WARNING is logged at startup).
+      FIRST_ADMIN_EMAIL: ${FIRST_ADMIN_EMAIL:-}
+      FIRST_ADMIN_PASSWORD: ${FIRST_ADMIN_PASSWORD:-}
+      FIRST_ADMIN_COMPANY: ${FIRST_ADMIN_COMPANY:-Cebuana Lhuillier}
+
+      # Cookie / TLS — set COOKIE_SECURE=false for local http testing
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+
+      # CORS — in Docker, frontend proxies /api so cross-origin isn't needed.
+      # Only set this if you expose the backend directly to other origins.
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+
+      # Optional LLM key
+      EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY:-}
+
+      # Uploads live on a named volume inside the container
+      UPLOAD_DIR: /var/lib/parking/uploads
+    volumes:
+      - parking_uploads:/var/lib/parking/uploads
+      # Couchbase Enterprise on-prem typically uses a private CA. Mount the
+      # PEM file here and set COUCHBASE_TRUST_STORE_PATH to /etc/ssl/cb-ca.pem
+      # in .env. The bind is read-only and only kicks in if the file exists.
+      - ${COUCHBASE_TRUST_STORE_HOST_PATH:-/dev/null}:/etc/ssl/cb-ca.pem:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+        required: false
+    ports:
+      # Expose for debugging / direct health checks. Remove in prod if you only
+      # want the frontend to reach it (in that case it's reachable via DNS).
+      - "127.0.0.1:8001:8001"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Empty = same-origin; nginx inside this container proxies /api to backend.
+        # Override if you deploy the frontend separately and the backend lives on
+        # a different host/domain.
+        REACT_APP_BACKEND_URL: ${REACT_APP_BACKEND_URL:-}
+    image: parking-frontend:latest
+    container_name: parking_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+
+volumes:
+  mongo_data:
+  parking_uploads:

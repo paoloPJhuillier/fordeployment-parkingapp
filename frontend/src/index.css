@@ -1,0 +1,291 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #08263e;
+  --primary-hover: #051a2d;
+  --primary-foreground: #FFFFFF;
+  --secondary: #FFFFFF;
+  --secondary-hover: #f1f2f2;
+  --secondary-foreground: #08263e;
+  --accent: #ec474e;
+  --accent-hover: #d63a41;
+  --background-light: #f1f2f2;
+  --background-dark: #08263e;
+  --card-light: #FFFFFF;
+  --card-dark: #051a2d;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --info: #3B82F6;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background-light);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 700;
+}
+
+code, .mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 204 78% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 204 78% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 204 78% 14%;
+    --primary: 204 78% 14%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 204 78% 14%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 204 10% 45%;
+    --accent: 204 30% 90%;
+    --accent-foreground: 204 78% 14%;
+    --destructive: 357 81% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 204 78% 14%;
+    --chart-1: 204 78% 14%;
+    --chart-2: 357 81% 60%;
+    --chart-3: 210 47% 55%;
+    --chart-4: 160 60% 45%;
+    --chart-5: 30 80% 55%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f2f2;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #08263e;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #051a2d;
+}
+
+/* Parking slot styles */
+.parking-slot {
+  @apply relative flex items-center justify-center rounded-lg border-2 transition-all duration-200 cursor-pointer;
+  aspect-ratio: 1.5;
+}
+
+.parking-slot.available {
+  @apply border-green-300 bg-green-50 hover:bg-green-100 hover:border-green-500;
+}
+
+.parking-slot.occupied {
+  @apply border-gray-300 bg-gray-100 cursor-not-allowed;
+}
+
+.parking-slot.reserved {
+  @apply border-yellow-400 bg-yellow-50;
+}
+
+.parking-slot.selected {
+  @apply border-[#08263e] bg-[#08263e]/10 ring-2 ring-[#08263e] ring-offset-2;
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(236, 71, 78, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(236, 71, 78, 0.5); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Button styles */
+.btn-primary {
+  @apply bg-[#08263e] text-white hover:bg-[#051a2d] rounded-full px-6 py-2.5 font-semibold shadow-md active:scale-95 transition-transform;
+}
+
+.btn-secondary {
+  @apply bg-[#ec474e] text-white hover:bg-[#d63a41] rounded-full px-6 py-2.5 font-semibold shadow-sm active:scale-95 transition-transform;
+}
+
+.btn-ghost {
+  @apply bg-transparent text-[#08263e] hover:bg-[#08263e]/10 rounded-full px-4 py-2 font-medium transition-colors;
+}
+
+/* Card styles */
+.card-base {
+  @apply bg-white rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow duration-300;
+}
+
+/* Glass effect */
+.glass {
+  @apply backdrop-blur-md bg-white/70 border border-white/20 shadow-sm;
+}
+
+/* Status badges */
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-pending {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-confirmed {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-cancelled {
+  @apply bg-red-100 text-red-800;
+}
+
+/* Mobile bottom nav */
+.mobile-nav {
+  @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex justify-around items-center z-50 md:hidden;
+}
+
+.mobile-nav-item {
+  @apply flex flex-col items-center gap-1 text-gray-500 hover:text-[#08263e] transition-colors p-2;
+}
+
+.mobile-nav-item.active {
+  @apply text-[#08263e];
+}
+
+/* Sidebar styles */
+.sidebar {
+  @apply fixed left-0 top-0 h-full w-64 bg-[#08263e] text-white transform transition-transform duration-300 z-40;
+}
+
+.sidebar-item {
+  @apply flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-lg mx-2 transition-colors cursor-pointer;
+}
+
+.sidebar-item.active {
+  @apply bg-white/20;
+}
+
+/* Input focus styles */
+input:focus, select:focus, textarea:focus {
+  @apply ring-2 ring-[#08263e] border-transparent outline-none;
+}
+
+/* Table styles */
+.data-table {
+  @apply w-full border-collapse;
+}
+
+.data-table th {
+  @apply bg-gray-50 text-left px-4 py-3 font-semibold text-gray-700 border-b;
+}
+
+.data-table td {
+  @apply px-4 py-3 border-b border-gray-100;
+}
+
+.data-table tr:hover {
+  @apply bg-gray-50;
+}
+
+/* Loading skeleton */
+.skeleton {
+  @apply animate-pulse bg-gray-200 rounded;
+}
+
+/* Radix dropdown/select hover states */
+[role="option"]:hover,
+[role="option"][data-highlighted],
+[role="menuitem"]:hover,
+[role="menuitem"][data-highlighted],
+[role="menuitemcheckbox"]:hover,
+[role="menuitemcheckbox"][data-highlighted] {
+  background-color: hsl(204 30% 90%) !important;
+  color: hsl(204 78% 14%) !important;
+  border-radius: 0.25rem;
+}
+
+
+/* Global text wrapping for better UI */
+.break-words {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Ensure text wraps in table cells */
+td, th {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Truncate long text with ellipsis */
+.truncate-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Multi-line truncate (2 lines) */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Ensure cards have proper text handling */
+.card-content p,
+.card-content span,
+.card-content div {
+  overflow-wrap: break-word;
+}
