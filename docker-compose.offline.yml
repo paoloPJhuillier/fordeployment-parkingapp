@@ -4,18 +4,44 @@
 # Bundles Couchbase Community + the parking backend + frontend so the whole
 # app runs on an air-gapped host with no external database.
 #
+# All three app images are used AS-IS from the local Docker image store
+# (pull_policy: never) — nothing is ever fetched from Docker Hub / a registry.
 # Load the images first (see README-OFFLINE.md), then:
 #   docker compose -f docker-compose.offline.yml --env-file .env up -d
 #
 # On first boot, provision Couchbase once (creates node/bucket/user/collections):
-#   docker compose -f docker-compose.offline.yml run --rm couchbase-init
+#   docker compose -f docker-compose.offline.yml --env-file .env run --rm couchbase-init
 # Then start the app:
-#   docker compose -f docker-compose.offline.yml up -d
+#   docker compose -f docker-compose.offline.yml --env-file .env up -d
+#
+# NOTE: For the bundled DB below, .env MUST point the backend at the bundled
+# node, e.g.:
+#   COUCHBASE_CONNECTION_STRING=couchbase://couchbase
 # =============================================================================
 
 name: parking-app-offline
 
 services:
+
+  # ---- Bundled Couchbase Community node --------------------------------------
+  couchbase:
+    image: couchbase:community-7.6.2
+    container_name: parking_offline_couchbase
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 40960
+        hard: 40960
+    ports:
+      - "127.0.0.1:${CB_ADMIN_PORT:-28091}:8091"
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8091/ui/index.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
 
   # One-shot cluster provisioning. Idempotent — safe to re-run.
   couchbase-init:
@@ -32,11 +58,12 @@ services:
       CB_RAM_MB: ${COUCHBASE_BUCKET_RAM_MB:-512}
     entrypoint: ["/bin/bash", "/init/couchbase-init.sh"]
     volumes:
-      - ./couchbase-init.sh:/init/couchbase-init.sh:ro
+      - ./docker-deploy/couchbase-init.sh:/init/couchbase-init.sh:ro
     restart: "no"
 
   backend:
     image: parking-backend:v1.0.0
+    pull_policy: never
     container_name: parking_backend
     restart: unless-stopped
     depends_on:
@@ -67,6 +94,7 @@ services:
 
   frontend:
     image: parking-frontend:v1.0.0
+    pull_policy: never
     container_name: parking_frontend
     restart: unless-stopped
     depends_on:

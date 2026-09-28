@@ -81,6 +81,8 @@ services:
 
   backend:
     image: ${IMAGE_REF_PREFIX:-}parking-backend:${IMAGE_TAG:-v1.0.0}
+    # Local images only when IMAGE_REF_PREFIX is empty — never hit a registry.
+    pull_policy: ${IMAGE_PULL_POLICY:-never}
     container_name: parking_backend
     restart: unless-stopped
     # All backend config comes from .env. Values below provide safe fallbacks
@@ -155,6 +157,8 @@ services:
 
   frontend:
     image: ${IMAGE_REF_PREFIX:-}parking-frontend:${IMAGE_TAG:-v1.0.0}
+    # Local images only when IMAGE_REF_PREFIX is empty — never hit a registry.
+    pull_policy: ${IMAGE_PULL_POLICY:-never}
     container_name: parking_frontend
     restart: unless-stopped
     depends_on:
