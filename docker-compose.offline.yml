@@ -1,0 +1,112 @@
+﻿# =============================================================================
+# docker-compose.offline.yml — self-contained offline stack
+#
+# Bundles Couchbase Community + the parking backend + frontend so the whole
+# app runs on an air-gapped host with no external database.
+#
+# Load the images first (see README-OFFLINE.md), then:
+#   docker compose -f docker-compose.offline.yml --env-file .env up -d
+#
+# On first boot, provision Couchbase once (creates node/bucket/user/collections):
+#   docker compose -f docker-compose.offline.yml run --rm couchbase-init
+# Then start the app:
+#   docker compose -f docker-compose.offline.yml up -d
+# =============================================================================
+
+name: parking-app-offline
+
+services:
+
+  couchbase:
+    image: couchbase:community-7.6.2
+    container_name: parking_couchbase
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 40960
+        hard: 40960
+    # Admin console is reachable inside the compose network at couchbase:8091.
+    # To expose it on the host for debugging, set CB_ADMIN_PORT in .env (e.g.
+    # 18091) — left unmapped by default to avoid clashing with an existing
+    # Couchbase already bound to 8091 on the host.
+    ports:
+      - "127.0.0.1:${CB_ADMIN_PORT:-18091}:8091"
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+    healthcheck:
+      # Ready once the REST admin port answers.
+      test: ["CMD", "curl", "-sf", "http://localhost:8091/ui/index.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # One-shot cluster provisioning. Idempotent — safe to re-run.
+  couchbase-init:
+    image: couchbase:community-7.6.2
+    container_name: parking_couchbase_init
+    depends_on:
+      couchbase:
+        condition: service_healthy
+    environment:
+      CB_HOST: couchbase
+      CB_USERNAME: ${COUCHBASE_USERNAME}
+      CB_PASSWORD: ${COUCHBASE_PASSWORD}
+      CB_BUCKET: ${COUCHBASE_BUCKET}
+      CB_RAM_MB: ${COUCHBASE_BUCKET_RAM_MB:-512}
+    entrypoint: ["/bin/bash", "/init/couchbase-init.sh"]
+    volumes:
+      - ./couchbase-init.sh:/init/couchbase-init.sh:ro
+    restart: "no"
+
+  backend:
+    image: parking-backend:v1.0.0
+    container_name: parking_backend
+    restart: unless-stopped
+    depends_on:
+      couchbase:
+        condition: service_healthy
+    environment:
+      DB_TYPE: couchbase
+      COUCHBASE_CONNECTION_STRING: ${COUCHBASE_CONNECTION_STRING}
+      COUCHBASE_BUCKET: ${COUCHBASE_BUCKET}
+      COUCHBASE_USERNAME: ${COUCHBASE_USERNAME}
+      COUCHBASE_PASSWORD: ${COUCHBASE_PASSWORD}
+      COUCHBASE_DEPLOYMENT: ${COUCHBASE_DEPLOYMENT:-enterprise}
+      COUCHBASE_TLS_VERIFY: ${COUCHBASE_TLS_VERIFY:-none}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-0.5}
+      FIRST_ADMIN_EMAIL: ${FIRST_ADMIN_EMAIL}
+      FIRST_ADMIN_PASSWORD: ${FIRST_ADMIN_PASSWORD}
+      FIRST_ADMIN_COMPANY: ${FIRST_ADMIN_COMPANY:-Cebuana Lhuillier}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      RUN_BACKGROUND_TASKS: ${RUN_BACKGROUND_TASKS:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      UPLOAD_DIR: /var/lib/parking/uploads
+    volumes:
+      - parking_uploads:/var/lib/parking/uploads
+    expose:
+      - "8001"
+
+  frontend:
+    image: parking-frontend:v1.0.0
+    container_name: parking_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    # Override the baked-in healthcheck: Alpine wget resolves "localhost" to
+    # IPv6 (::1) first, but nginx listens on IPv4 here — use 127.0.0.1.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  couchbase_data:
+  parking_uploads:
