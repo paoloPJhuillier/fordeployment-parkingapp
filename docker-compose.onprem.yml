@@ -12,12 +12,20 @@
 # (the prefix must end with a trailing slash). Leave IMAGE_REF_PREFIX empty
 # to use the local images.
 #
-# What you supply at the on-prem host:
-#   1. .env                         — Couchbase + JWT + admin settings
-#   2. ${COUCHBASE_TRUST_STORE_HOST_PATH} — Couchbase CA cert (PEM), OPTIONAL
+# --------------------------------------------------------------------------
+# DATABASE — two ways to run:
 #
-# Bring up:
-#   docker compose -f docker-compose.onprem.yml --env-file .env up -d
+# (A) EXTERNAL Couchbase (default, on-prem intent):
+#     Supply COUCHBASE_CONNECTION_STRING / BUCKET / USERNAME / PASSWORD in .env
+#     pointing at the customer's cluster, then:
+#       docker compose -f docker-compose.onprem.yml --env-file .env up -d
+#
+# (B) BUNDLED Couchbase (self-contained, great for local validation):
+#     Adds a couchbase node + one-shot provisioner. No external DB needed.
+#     The backend automatically points at the bundled node.
+#       docker compose -f docker-compose.onprem.yml --profile local-db up -d
+#     First run auto-provisions the cluster/bucket via couchbase-init.
+#
 # Bring down (containers only, data preserved):
 #   docker compose -f docker-compose.onprem.yml down
 # Bring down (containers + volumes — DESTRUCTIVE):
@@ -27,6 +35,46 @@ name: parking-app
 
 services:
 
+  # ---- (B) Optional bundled Couchbase (profile: local-db) ------------------
+  couchbase:
+    image: couchbase:community-7.6.2
+    container_name: parking_onprem_couchbase
+    profiles: ["local-db"]
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 40960
+        hard: 40960
+    ports:
+      - "127.0.0.1:${CB_ADMIN_PORT:-28091}:8091"
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8091/ui/index.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # One-shot cluster provisioning for the bundled node. Idempotent.
+  couchbase-init:
+    image: couchbase:community-7.6.2
+    container_name: parking_onprem_couchbase_init
+    profiles: ["local-db"]
+    depends_on:
+      couchbase:
+        condition: service_healthy
+    environment:
+      CB_HOST: couchbase
+      CB_USERNAME: ${COUCHBASE_USERNAME:-parkingapp}
+      CB_PASSWORD: ${COUCHBASE_PASSWORD:-parkingapp123}
+      CB_BUCKET: ${COUCHBASE_BUCKET:-db_parking}
+      CB_RAM_MB: ${COUCHBASE_BUCKET_RAM_MB:-512}
+    entrypoint: ["/bin/bash", "/init/couchbase-init.sh"]
+    volumes:
+      - ./docker-deploy/couchbase-init.sh:/init/couchbase-init.sh:ro
+    restart: "no"
+
   backend:
     image: ${IMAGE_REF_PREFIX:-}parking-backend:${IMAGE_TAG:-v1.0.0}
     container_name: parking_backend
@@ -34,19 +82,22 @@ services:
     environment:
       DB_TYPE: couchbase
 
-      # Couchbase Enterprise (on-prem)
-      COUCHBASE_CONNECTION_STRING: ${COUCHBASE_CONNECTION_STRING}
-      COUCHBASE_BUCKET: ${COUCHBASE_BUCKET}
-      COUCHBASE_USERNAME: ${COUCHBASE_USERNAME}
-      COUCHBASE_PASSWORD: ${COUCHBASE_PASSWORD}
+      # Couchbase connection. Defaults target the BUNDLED node (profile
+      # local-db) so the stack is self-contained; override all four in .env
+      # to point at an EXTERNAL cluster.
+      COUCHBASE_CONNECTION_STRING: ${COUCHBASE_CONNECTION_STRING:-couchbase://couchbase}
+      COUCHBASE_BUCKET: ${COUCHBASE_BUCKET:-db_parking}
+      COUCHBASE_USERNAME: ${COUCHBASE_USERNAME:-parkingapp}
+      COUCHBASE_PASSWORD: ${COUCHBASE_PASSWORD:-parkingapp123}
       COUCHBASE_DEPLOYMENT: ${COUCHBASE_DEPLOYMENT:-enterprise}
       # CA trust store path inside the container. Only used if the file is
       # mounted (see volumes below); harmless otherwise.
       COUCHBASE_TRUST_STORE_PATH: ${COUCHBASE_TRUST_STORE_PATH:-}
-      COUCHBASE_TLS_VERIFY: ${COUCHBASE_TLS_VERIFY:-peer}
+      # Bundled node is non-TLS, so verification is disabled by default.
+      COUCHBASE_TLS_VERIFY: ${COUCHBASE_TLS_VERIFY:-none}
 
       # Auth / JWT
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-env}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-0.5}
 
@@ -75,12 +126,21 @@ services:
       # COUCHBASE_TRUST_STORE_PATH=/etc/ssl/cb-ca.pem in .env.
       - ${COUCHBASE_TRUST_STORE_HOST_PATH:-/dev/null}:/etc/ssl/cb-ca.pem:ro
 
+    # When the bundled DB is used, wait for it to finish provisioning first.
+    # `required: false` means this dependency is ignored when the couchbase
+    # service isn't started (i.e. the default external-DB mode).
+    depends_on:
+      couchbase-init:
+        condition: service_completed_successfully
+        required: false
+
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8001/health"]
+      # The backend image ships curl (not wget); use it here.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/health"]
       interval: 15s
       timeout: 5s
       retries: 6
-      start_period: 30s
+      start_period: 40s
 
     expose:
       - "8001"
@@ -108,3 +168,4 @@ services:
 
 volumes:
   parking_uploads:
+  couchbase_data:
