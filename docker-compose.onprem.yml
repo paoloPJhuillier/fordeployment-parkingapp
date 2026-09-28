@@ -70,9 +70,9 @@ services:
         condition: service_healthy
     environment:
       CB_HOST: couchbase
-      CB_USERNAME: ${COUCHBASE_USERNAME:-parking_app}
+      CB_USERNAME: ${COUCHBASE_USERNAME:-parkingapp}
       CB_PASSWORD: ${COUCHBASE_PASSWORD:-password123}
-      CB_BUCKET: ${COUCHBASE_BUCKET:-db_parking}
+      CB_BUCKET: ${COUCHBASE_BUCKET:-db_Parking_uat}
       CB_RAM_MB: ${COUCHBASE_BUCKET_RAM_MB:-512}
     entrypoint: ["/bin/bash", "/init/couchbase-init.sh"]
     volumes:
@@ -94,7 +94,7 @@ services:
       # COUCHBASE_CONNECTION_STRING MUST include a scheme:
       #   couchbase://host   (non-TLS)   or   couchbases://host  (TLS)
       COUCHBASE_CONNECTION_STRING: ${COUCHBASE_CONNECTION_STRING:?set COUCHBASE_CONNECTION_STRING in .env, e.g. couchbase://cb03-wurmple.pjlhuillier.uat}
-      COUCHBASE_BUCKET: ${COUCHBASE_BUCKET:-db_parking}
+      COUCHBASE_BUCKET: ${COUCHBASE_BUCKET:-db_Parking_uat}
       COUCHBASE_USERNAME: ${COUCHBASE_USERNAME:-parkingapp}
       COUCHBASE_PASSWORD: ${COUCHBASE_PASSWORD:?set COUCHBASE_PASSWORD in .env}
       COUCHBASE_DEPLOYMENT: ${COUCHBASE_DEPLOYMENT:-enterprise}
