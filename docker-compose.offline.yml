@@ -1,82 +1,34 @@
 ﻿# =============================================================================
 # docker-compose.offline.yml — self-contained offline stack
 #
-# Bundles Couchbase Community + the parking backend + frontend so the whole
-# app runs on an air-gapped host with no external database.
+# Bundles the parking backend + frontend so the app runs on an air-gapped
+# host. Couchbase is NOT bundled here — point the backend at an external
+# Couchbase cluster via COUCHBASE_CONNECTION_STRING in .env.
 #
-# All three app images are used AS-IS from the local Docker image store
-# (pull_policy: never) — nothing is ever fetched from Docker Hub / a registry.
+# The app images are used AS-IS from the local Docker image store
+# (pull_policy: never) — nothing is fetched from Docker Hub / a registry.
 #
 # STEP 1 — Load the app images from the shipped tarballs (offline-bundle/):
 #   docker load -i offline-bundle/parking-backend-v1.0.0.tar
 #   docker load -i offline-bundle/parking-frontend-v1.0.0.tar
-# The couchbase:community-7.6.2 base image must also be present locally; if it
-# was shipped as a tar, load it too:
-#   docker load -i offline-bundle/couchbase-community-7.6.2.tar   # if provided
 #
-# STEP 2 — Provision Couchbase once (creates node/bucket/user/collections):
-#   docker compose -f docker-compose.offline.yml --env-file .env run --rm couchbase-init
-#
-# STEP 3 — Start the app:
+# STEP 2 — Start the app (backend connects to the external Couchbase in .env):
 #   docker compose -f docker-compose.offline.yml --env-file .env up -d
-#
-# NOTE: For the bundled DB below, .env MUST point the backend at the bundled
-# node, e.g.:
-#   COUCHBASE_CONNECTION_STRING=couchbase://couchbase
 # =============================================================================
 
 name: parking-app-offline
 
 services:
 
-  # ---- Bundled Couchbase Community node --------------------------------------
-  couchbase:
-    image: couchbase:community-7.6.2
-    container_name: parking_offline_couchbase
-    restart: unless-stopped
-    ulimits:
-      nofile:
-        soft: 40960
-        hard: 40960
-    ports:
-      - "127.0.0.1:${CB_ADMIN_PORT:-28091}:8091"
-    volumes:
-      - couchbase_data:/opt/couchbase/var
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8091/ui/index.html"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 20s
-
-  # One-shot cluster provisioning. Idempotent — safe to re-run.
-  couchbase-init:
-    image: couchbase:community-7.6.2
-    container_name: parking_couchbase_init
-    depends_on:
-      couchbase:
-        condition: service_healthy
-    environment:
-      CB_HOST: couchbase
-      CB_USERNAME: ${COUCHBASE_USERNAME}
-      CB_PASSWORD: ${COUCHBASE_PASSWORD}
-      CB_BUCKET: ${COUCHBASE_BUCKET}
-      CB_RAM_MB: ${COUCHBASE_BUCKET_RAM_MB:-512}
-    entrypoint: ["/bin/bash", "/init/couchbase-init.sh"]
-    volumes:
-      - ./docker-deploy/couchbase-init.sh:/init/couchbase-init.sh:ro
-    restart: "no"
-
   backend:
     image: parking-backend:v1.0.0
     pull_policy: never
     container_name: parking_backend
     restart: unless-stopped
-    depends_on:
-      couchbase:
-        condition: service_healthy
     environment:
       DB_TYPE: couchbase
+      # External Couchbase cluster. MUST include a scheme:
+      #   couchbase://host (non-TLS) or couchbases://host (TLS).
       COUCHBASE_CONNECTION_STRING: ${COUCHBASE_CONNECTION_STRING}
       COUCHBASE_BUCKET: ${COUCHBASE_BUCKET}
       COUCHBASE_USERNAME: ${COUCHBASE_USERNAME}
@@ -95,6 +47,13 @@ services:
       UPLOAD_DIR: /var/lib/parking/uploads
     volumes:
       - parking_uploads:/var/lib/parking/uploads
+    healthcheck:
+      # The backend image ships curl (not wget); use it here.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
     expose:
       - "8001"
 
@@ -118,5 +77,4 @@ services:
       start_period: 15s
 
 volumes:
-  couchbase_data:
   parking_uploads:
