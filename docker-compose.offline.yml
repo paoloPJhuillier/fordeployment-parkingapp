@@ -17,6 +17,24 @@ name: parking-app-offline
 
 services:
 
+  # One-shot cluster provisioning. Idempotent — safe to re-run.
+  couchbase-init:
+    image: couchbase:community-7.6.2
+    container_name: parking_couchbase_init
+    depends_on:
+      couchbase:
+        condition: service_healthy
+    environment:
+      CB_HOST: couchbase
+      CB_USERNAME: ${COUCHBASE_USERNAME}
+      CB_PASSWORD: ${COUCHBASE_PASSWORD}
+      CB_BUCKET: ${COUCHBASE_BUCKET}
+      CB_RAM_MB: ${COUCHBASE_BUCKET_RAM_MB:-512}
+    entrypoint: ["/bin/bash", "/init/couchbase-init.sh"]
+    volumes:
+      - ./couchbase-init.sh:/init/couchbase-init.sh:ro
+    restart: "no"
+
   backend:
     image: parking-backend:v1.0.0
     container_name: parking_backend
