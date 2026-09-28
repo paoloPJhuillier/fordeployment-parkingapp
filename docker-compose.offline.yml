@@ -14,6 +14,20 @@
 #
 # STEP 2 — Start the app (backend connects to the external Couchbase in .env):
 #   docker compose -f docker-compose.offline.yml --env-file .env up -d
+#
+# -----------------------------------------------------------------------------
+# AIR-GAPPED CONNECTIVITY (fixing Couchbase UnAmbiguousTimeoutException)
+#
+# The timeout means the backend container could not reach the Couchbase host
+# named in COUCHBASE_CONNECTION_STRING. First confirm where it breaks:
+#   docker run --rm busybox nslookup <couchbase-host>     # container DNS
+#   nc -vz <couchbase-host> 8091                          # host reachability
+#
+# Then apply the override file docker-compose.airgap.yml, which pins the
+# cluster hostname to its IP (and/or sets an internal DNS server). Edit the
+# IP/host in that file to match your cluster, then start with BOTH files:
+#   docker compose -f docker-compose.offline.yml -f docker-compose.airgap.yml \
+#     --env-file .env up -d
 # =============================================================================
 
 name: parking-app-offline

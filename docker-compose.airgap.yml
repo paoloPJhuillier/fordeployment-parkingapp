@@ -1,0 +1,30 @@
+# =============================================================================
+# docker-compose.airgap.yml — connectivity override for air-gapped hosts
+#
+# Fixes the Couchbase UnAmbiguousTimeoutException that happens when the backend
+# container cannot resolve/reach the external Couchbase host. Apply it ON TOP
+# of the offline stack:
+#   docker compose -f docker-compose.offline.yml -f docker-compose.airgap.yml \
+#     --env-file .env up -d
+#
+# EDIT the values below to match your environment before using:
+#   - extra_hosts: map the exact hostname in COUCHBASE_CONNECTION_STRING to the
+#     cluster's IP. This is the most reliable fix — it bypasses DNS entirely.
+#   - dns: (optional) point the container at your internal DNS server instead
+#     of, or in addition to, the host mapping.
+#
+# Keep only the block(s) you need; delete the rest.
+# =============================================================================
+
+services:
+
+  backend:
+    # (a) Pin the Couchbase hostname to its IP. RECOMMENDED for air-gapped hosts.
+    #     The left side MUST match the host in COUCHBASE_CONNECTION_STRING.
+    extra_hosts:
+      - "cb03-wurmple.pjlhuillier.uat:10.20.30.40"   # <-- replace with real IP
+
+    # (b) OPTIONAL: use an internal DNS server for name resolution.
+    #     Uncomment and set your resolver's IP if you rely on DNS instead of (a).
+    # dns:
+    #   - "10.20.30.2"
