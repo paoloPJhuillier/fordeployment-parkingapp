@@ -17,48 +17,6 @@ name: parking-app-offline
 
 services:
 
-  couchbase:
-    image: couchbase:community-7.6.2
-    container_name: parking_couchbase
-    restart: unless-stopped
-    ulimits:
-      nofile:
-        soft: 40960
-        hard: 40960
-    # Admin console is reachable inside the compose network at couchbase:8091.
-    # To expose it on the host for debugging, set CB_ADMIN_PORT in .env (e.g.
-    # 18091) — left unmapped by default to avoid clashing with an existing
-    # Couchbase already bound to 8091 on the host.
-    ports:
-      - "127.0.0.1:${CB_ADMIN_PORT:-18091}:8091"
-    volumes:
-      - couchbase_data:/opt/couchbase/var
-    healthcheck:
-      # Ready once the REST admin port answers.
-      test: ["CMD", "curl", "-sf", "http://localhost:8091/ui/index.html"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 20s
-
-  # One-shot cluster provisioning. Idempotent — safe to re-run.
-  couchbase-init:
-    image: couchbase:community-7.6.2
-    container_name: parking_couchbase_init
-    depends_on:
-      couchbase:
-        condition: service_healthy
-    environment:
-      CB_HOST: couchbase
-      CB_USERNAME: ${COUCHBASE_USERNAME}
-      CB_PASSWORD: ${COUCHBASE_PASSWORD}
-      CB_BUCKET: ${COUCHBASE_BUCKET}
-      CB_RAM_MB: ${COUCHBASE_BUCKET_RAM_MB:-512}
-    entrypoint: ["/bin/bash", "/init/couchbase-init.sh"]
-    volumes:
-      - ./couchbase-init.sh:/init/couchbase-init.sh:ro
-    restart: "no"
-
   backend:
     image: parking-backend:v1.0.0
     container_name: parking_backend
