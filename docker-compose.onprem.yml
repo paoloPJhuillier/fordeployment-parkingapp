@@ -57,17 +57,21 @@ services:
       start_period: 20s
 
   # One-shot cluster provisioning for the bundled node. Idempotent.
+  # Provisions the cluster/bucket/collections using the SAME credentials the
+  # backend uses (read from .env), so the two never drift apart.
   couchbase-init:
     image: couchbase:community-7.6.2
     container_name: parking_onprem_couchbase_init
     profiles: ["local-db"]
+    env_file:
+      - .env
     depends_on:
       couchbase:
         condition: service_healthy
     environment:
       CB_HOST: couchbase
-      CB_USERNAME: ${COUCHBASE_USERNAME:-parkingapp}
-      CB_PASSWORD: ${COUCHBASE_PASSWORD:-parkingapp123}
+      CB_USERNAME: ${COUCHBASE_USERNAME:-parking_app}
+      CB_PASSWORD: ${COUCHBASE_PASSWORD:-password123}
       CB_BUCKET: ${COUCHBASE_BUCKET:-db_parking}
       CB_RAM_MB: ${COUCHBASE_BUCKET_RAM_MB:-512}
     entrypoint: ["/bin/bash", "/init/couchbase-init.sh"]
@@ -79,16 +83,20 @@ services:
     image: ${IMAGE_REF_PREFIX:-}parking-backend:${IMAGE_TAG:-v1.0.0}
     container_name: parking_backend
     restart: unless-stopped
+    # All backend config comes from .env. Values below provide safe fallbacks
+    # and are overridden by anything present in the env_file.
+    env_file:
+      - .env
     environment:
       DB_TYPE: couchbase
 
-      # Couchbase connection. Defaults target the BUNDLED node (profile
-      # local-db) so the stack is self-contained; override all four in .env
-      # to point at an EXTERNAL cluster.
-      COUCHBASE_CONNECTION_STRING: ${COUCHBASE_CONNECTION_STRING:-couchbase://couchbase}
+      # Couchbase connection — EXTERNAL cluster, read from .env.
+      # COUCHBASE_CONNECTION_STRING MUST include a scheme:
+      #   couchbase://host   (non-TLS)   or   couchbases://host  (TLS)
+      COUCHBASE_CONNECTION_STRING: ${COUCHBASE_CONNECTION_STRING:?set COUCHBASE_CONNECTION_STRING in .env, e.g. couchbase://cb03-wurmple.pjlhuillier.uat}
       COUCHBASE_BUCKET: ${COUCHBASE_BUCKET:-db_parking}
       COUCHBASE_USERNAME: ${COUCHBASE_USERNAME:-parkingapp}
-      COUCHBASE_PASSWORD: ${COUCHBASE_PASSWORD:-parkingapp123}
+      COUCHBASE_PASSWORD: ${COUCHBASE_PASSWORD:?set COUCHBASE_PASSWORD in .env}
       COUCHBASE_DEPLOYMENT: ${COUCHBASE_DEPLOYMENT:-enterprise}
       # CA trust store path inside the container. Only used if the file is
       # mounted (see volumes below); harmless otherwise.
