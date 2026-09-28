@@ -6,12 +6,18 @@
 #
 # All three app images are used AS-IS from the local Docker image store
 # (pull_policy: never) — nothing is ever fetched from Docker Hub / a registry.
-# Load the images first (see README-OFFLINE.md), then:
-#   docker compose -f docker-compose.offline.yml --env-file .env up -d
 #
-# On first boot, provision Couchbase once (creates node/bucket/user/collections):
+# STEP 1 — Load the app images from the shipped tarballs (offline-bundle/):
+#   docker load -i offline-bundle/parking-backend-v1.0.0.tar
+#   docker load -i offline-bundle/parking-frontend-v1.0.0.tar
+# The couchbase:community-7.6.2 base image must also be present locally; if it
+# was shipped as a tar, load it too:
+#   docker load -i offline-bundle/couchbase-community-7.6.2.tar   # if provided
+#
+# STEP 2 — Provision Couchbase once (creates node/bucket/user/collections):
 #   docker compose -f docker-compose.offline.yml --env-file .env run --rm couchbase-init
-# Then start the app:
+#
+# STEP 3 — Start the app:
 #   docker compose -f docker-compose.offline.yml --env-file .env up -d
 #
 # NOTE: For the bundled DB below, .env MUST point the backend at the bundled
